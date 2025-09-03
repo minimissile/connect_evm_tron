@@ -8,23 +8,58 @@
         使用 WalletConnect AppKit v3 连接您的钱包，支持Tron、Ethereum等多链
       </p>
 
-      <!-- 使用 AppKit 内置按钮 -->
-      <!--      <w3m-button />-->
+      <!-- 链选择界面 -->
+      <div v-if="!selectedChain" class="chain-selection">
+        <h3>选择要连接的区块链</h3>
+        <div class="chain-grid">
+          <div
+            v-for="chain in availableChains"
+            :key="chain.id"
+            @click="selectChain(chain)"
+            class="chain-card"
+          >
+            <div class="chain-icon">{{ chain.icon }}</div>
+            <div class="chain-name">{{ chain.name }}</div>
+            <div class="chain-currency">{{ chain.currency }}</div>
+          </div>
+        </div>
+      </div>
 
-      <!-- 或者自定义按钮 -->
-      <button
-        @click="appKit.open()"
-        class="custom-connect-btn"
-        :disabled="isConnecting"
-      >
-        {{ isConnecting ? "连接中..." : "自定义连接按钮" }}
-      </button>
+      <!-- 已选择链，显示连接按钮 -->
+      <div v-else class="selected-chain-section">
+        <div class="selected-chain-info">
+          <span class="selected-label">已选择链:</span>
+          <div class="selected-chain">
+            <span class="chain-icon">{{ selectedChain.icon }}</span>
+            <span class="chain-name">{{ selectedChain.name }}</span>
+            <button @click="resetChainSelection" class="change-chain-btn">
+              更换
+            </button>
+          </div>
+        </div>
+
+        <!-- 连接按钮 -->
+        <button
+          @click="openModal"
+          @touchstart="handleTouchStart"
+          @touchmove="handleTouchMove"
+          @touchend="handleTouchEnd"
+          class="custom-connect-btn"
+          :disabled="isConnecting"
+        >
+          {{ isConnecting ? "连接中..." : `连接到 ${selectedChain.name}` }}
+        </button>
+      </div>
     </div>
 
     <!-- 已连接状态 -->
     <div v-else class="connected-section">
       <div class="wallet-info">
         <h3>钱包已连接</h3>
+        <div class="info-item">
+          <span class="label">当前链:</span>
+          <span class="value">{{ getCurrentChainName() }}</span>
+        </div>
         <div class="info-item">
           <span class="label">地址:</span>
           <span class="value">{{ address }}</span>
@@ -120,9 +155,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
-import { createAppKit } from "@reown/appkit/vue";
+import { AppKit, createAppKit } from "@reown/appkit/vue";
 import { Ethers5Adapter } from "@reown/appkit-adapter-ethers5";
 import { mainnet, bsc } from "@reown/appkit/networks";
 import { ethers } from "ethers";
@@ -155,6 +190,39 @@ const balance = ref("");
 const error = ref("");
 const modal = ref(null);
 const provider = ref(null);
+const selectedChain = ref(null);
+
+// 可用的链列表
+const availableChains = ref([
+  {
+    id: 1,
+    name: "Ethereum",
+    currency: "ETH",
+    icon: "🔷",
+    network: mainnet,
+  },
+  {
+    id: 56,
+    name: "BNB Smart Chain",
+    currency: "BNB",
+    icon: "🟡",
+    network: bsc,
+  },
+  {
+    id: "0x2b6653dc",
+    name: "Tron",
+    currency: "TRX",
+    icon: "🔴",
+    network: tronMainnet,
+  },
+  {
+    id: "0x94a9059e",
+    name: "Tron Testnet",
+    currency: "TRX",
+    icon: "🟠",
+    network: tronShasta,
+  },
+]);
 
 // 测试功能相关数据
 const signMessage = ref("Hello WalletConnect!");
@@ -167,18 +235,21 @@ const transferResult = ref("");
 const projectId = "c34b3bde7397ea7ed6780e9ce1d5194d";
 
 // 创建 AppKit 实例
-let appKit = null;
+let appKit: AppKit = null;
 
-onMounted(async () => {
+// 初始化 AppKit 实例
+const initializeAppKit = (selectedNetwork = bsc) => {
   try {
     // 创建 Ethers5 适配器
     const ethersAdapter = new Ethers5Adapter();
+
+    // appKit.addNetwork();
 
     // 创建 AppKit 实例
     appKit = createAppKit({
       projectId,
       adapters: [ethersAdapter],
-      networks: [mainnet, bsc],
+      networks: [mainnet, bsc], // 保持所有网络可用
       metadata: {
         name: "WalletConnect v3 Demo",
         description: "Vue3 WalletConnect AppKit 示例应用，支持Tron链连接",
@@ -196,7 +267,7 @@ onMounted(async () => {
         "--w3m-z-index": 9999,
         "--w3m-accent": "#007bff",
       },
-      defaultNetwork: bsc, // 设置Tron为默认网络
+      defaultNetwork: selectedNetwork, // 使用选择的网络
     });
 
     // 监听连接状态变化
@@ -250,6 +321,11 @@ onMounted(async () => {
     console.error("AppKit 初始化失败:", err);
     error.value = "初始化失败: " + err.message;
   }
+};
+
+onMounted(async () => {
+  // 初始化时不自动创建 AppKit，等待用户选择链
+  console.log("组件已挂载，等待用户选择链");
 });
 
 onUnmounted(() => {
@@ -258,6 +334,25 @@ onUnmounted(() => {
     // AppKit 会自动处理清理
   }
 });
+
+// 链选择相关方法
+const selectChain = (chain) => {
+  console.log("选择链:", chain.name);
+  selectedChain.value = chain;
+
+  // 重新创建 AppKit 实例以支持选择的链
+  initializeAppKit(chain.network);
+};
+
+const resetChainSelection = () => {
+  console.log("重置链选择");
+  selectedChain.value = null;
+
+  // 如果已连接，先断开连接
+  if (isConnected.value && appKit) {
+    appKit.disconnect();
+  }
+};
 
 // 打开连接模态框
 const openModal = async () => {
@@ -361,6 +456,40 @@ const getCurrencySymbol = () => {
       return "ETH"; // Base
     default:
       return "ETH";
+  }
+};
+
+// 获取当前连接的链名称
+const getCurrentChainName = () => {
+  if (!chainId.value) return "未知链";
+
+  // 根据链ID匹配对应的链名称
+  const chainIdStr = chainId.value.toString();
+
+  // Tron 链
+  if (chainIdStr === "0x2b6653dc" || chainIdStr === "728126428") {
+    return "🔴 Tron";
+  }
+  if (chainIdStr === "0x94a9059e" || chainIdStr === "2494104990") {
+    return "🟠 Tron Testnet";
+  }
+
+  // EVM 链
+  switch (parseInt(chainIdStr)) {
+    case 1:
+      return "🔷 Ethereum";
+    case 56:
+      return "🟡 BNB Smart Chain";
+    case 137:
+      return "🟣 Polygon";
+    case 42161:
+      return "🔵 Arbitrum";
+    case 10:
+      return "🔴 Optimism";
+    case 8453:
+      return "🔵 Base";
+    default:
+      return `链 ${chainIdStr}`;
   }
 };
 
@@ -936,8 +1065,133 @@ button:disabled {
   border: 1px solid rgba(144, 238, 144, 0.3);
 }
 
+/* 链选择样式 */
+.chain-selection {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.chain-selection h3 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 18px;
+}
+
+.chain-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.chain-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.chain-card:hover {
+  border-color: #007bff;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+}
+
+.chain-icon {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.chain-name {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 5px;
+  font-size: 16px;
+}
+
+.chain-currency {
+  color: #666;
+  font-size: 14px;
+}
+
+/* 已选择链样式 */
+.selected-chain-section {
+  text-align: center;
+}
+
+.selected-chain-info {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.selected-label {
+  color: #666;
+  font-size: 14px;
+}
+
+.selected-chain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.selected-chain .chain-icon {
+  font-size: 18px;
+  margin: 0;
+}
+
+.selected-chain .chain-name {
+  font-weight: 500;
+  color: #333;
+  margin: 0;
+  font-size: 14px;
+}
+
+.change-chain-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.change-chain-btn:hover {
+  background: #5a6268;
+}
+
 /* 移动端测试功能优化 */
 @media (max-width: 768px) {
+  .chain-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .chain-card {
+    padding: 15px;
+  }
+
+  .selected-chain-info {
+    flex-direction: column;
+    gap: 8px;
+  }
+
   .test-section {
     padding: 15px;
   }

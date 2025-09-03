@@ -1,8 +1,11 @@
-import './assets/main.css'
+import "./assets/main.css";
+import VConsole from "vconsole";
 
-import { createApp } from 'vue'
-import App from './App.vue'
-import { Buffer } from 'buffer'
-window.Buffer = Buffer
+import { createApp } from "vue";
+import App from "./App.vue";
+import { Buffer } from "buffer";
+window.Buffer = Buffer;
 
-createApp(App).mount('#app')
+const vConsole = new VConsole();
+
+createApp(App).mount("#app");
