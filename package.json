@@ -1,0 +1,42 @@
+{
+  "name": "wallet_3",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@reown/appkit": "^1.8.1",
+    "@reown/appkit-adapter-ethers5": "^1.8.1",
+    "@reown/appkit-common": "^1.8.1",
+    "@tronweb3/tronwallet-adapter-tronlink": "^1.1.12",
+    "@tronweb3/tronwallet-adapter-walletconnect": "^2.0.3",
+    "@tronweb3/walletconnect-tron": "^3.0.0",
+    "@walletconnect/modal": "^2.7.0",
+    "@walletconnect/sign-client": "^2.21.8",
+    "@walletconnect/universal-provider": "^2.21.8",
+    "@walletconnect/utils": "^2.21.8",
+    "bignumber.js": "^9.3.1",
+    "buffer": "^6.0.3",
+    "core-js": "^3.8.3",
+    "crypto-browserify": "^3.12.1",
+    "ethers": "^5.8.0",
+    "prettier": "^3.6.2",
+    "tronweb": "^6.0.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "assert": "^2.1.0",
+    "stream-browserify": "^3.0.0",
+    "util": "^0.12.5",
+    "vite": "^7.0.6",
+    "vite-plugin-vue-devtools": "^8.0.0",
+    "vue": "^3.5.18"
+  }
+}
