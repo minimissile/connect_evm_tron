@@ -1,6 +1,6 @@
 <template>
   <div class="walletconnect-container">
-    <h2>WalletConnect v3 (支持Tron链)</h2>
+    <h2>WalletConnect v3</h2>
 
     <!-- 连接状态显示 -->
     <div v-if="!isConnected" class="connection-section">
@@ -9,13 +9,11 @@
       </p>
 
       <!-- 使用 AppKit 内置按钮 -->
-      <w3m-button />
+      <!--      <w3m-button />-->
 
       <!-- 或者自定义按钮 -->
       <button
-        @click="openModal"
-        @touchstart="handleTouchStart"
-        @touchend="handleTouchEnd"
+        @click="appKit.open()"
         class="custom-connect-btn"
         :disabled="isConnecting"
       >
@@ -45,25 +43,79 @@
         <button @click="getBalance" class="action-btn">刷新余额</button>
         <button @click="disconnect" class="disconnect-btn">断开连接</button>
       </div>
+
+      <!-- 功能测试区域 -->
+      <div class="test-section">
+        <h4>功能测试</h4>
+
+        <!-- 签名测试 -->
+        <div class="test-group">
+          <h5>消息签名测试</h5>
+          <div class="input-group">
+            <input
+              v-model="signMessage"
+              type="text"
+              placeholder="输入要签名的消息"
+              class="test-input"
+            />
+            <button
+              @click="testSignMessage"
+              class="test-btn"
+              :disabled="!signMessage.trim()"
+            >
+              签名消息
+            </button>
+          </div>
+          <div v-if="signatureResult" class="result-box">
+            <strong>签名结果:</strong>
+            <div class="signature-result">{{ signatureResult }}</div>
+          </div>
+        </div>
+
+        <!-- 转账测试 -->
+        <div class="test-group">
+          <h5>转账测试</h5>
+          <div class="transfer-form">
+            <div class="input-group">
+              <input
+                v-model="transferTo"
+                type="text"
+                placeholder="接收地址"
+                class="test-input"
+              />
+            </div>
+            <div class="input-group">
+              <input
+                v-model="transferAmount"
+                type="number"
+                step="0.000001"
+                placeholder="转账金额"
+                class="test-input"
+              />
+            </div>
+            <button
+              @click="testTransfer"
+              class="test-btn transfer-btn"
+              :disabled="
+                !transferTo.trim() ||
+                !transferAmount ||
+                parseFloat(transferAmount) <= 0
+              "
+            >
+              发送转账
+            </button>
+          </div>
+          <div v-if="transferResult" class="result-box">
+            <strong>转账结果:</strong>
+            <div class="transfer-result">{{ transferResult }}</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 错误信息 -->
     <div v-if="error" class="error-message">
       <strong>错误:</strong> {{ error }}
-    </div>
-
-    <!-- 网络信息 -->
-    <div v-if="isConnected" class="network-info">
-      <h4>支持的网络</h4>
-      <div class="networks">
-        <span
-          v-for="network in supportedNetworks"
-          :key="network.id"
-          class="network-tag"
-        >
-          {{ network.name }}
-        </span>
-      </div>
     </div>
   </div>
 </template>
@@ -104,17 +156,12 @@ const error = ref("");
 const modal = ref(null);
 const provider = ref(null);
 
-// 支持的网络
-const supportedNetworks = [
-  { id: 1, name: "Ethereum" },
-  { id: 137, name: "Polygon" },
-  { id: 42161, name: "Arbitrum" },
-  { id: 10, name: "Optimism" },
-  { id: 8453, name: "Base" },
-  { id: 56, name: "Bsc" },
-  { id: "0x2b6653dc", name: "Tron" },
-  { id: "0x94a9059e", name: "Tron Shasta" },
-];
+// 测试功能相关数据
+const signMessage = ref("Hello WalletConnect!");
+const signatureResult = ref("");
+const transferTo = ref("");
+const transferAmount = ref("");
+const transferResult = ref("");
 
 // WalletConnect 项目 ID (需要从 https://dashboard.reown.com 获取)
 const projectId = "c34b3bde7397ea7ed6780e9ce1d5194d";
@@ -215,36 +262,8 @@ onUnmounted(() => {
 // 打开连接模态框
 const openModal = async () => {
   try {
-    // 防止重复连接请求
-    if (isConnecting.value || isConnected.value) {
-      console.log("连接正在进行中或已连接，跳过重复请求");
-      return;
-    }
-
-    isConnecting.value = true;
-    error.value = "";
-
     if (appKit) {
-      // 先检查是否有活跃的连接会话
-      const state = appKit.getState();
-      if (state && state.open) {
-        console.log("模态框已打开，跳过重复请求");
-        return;
-      }
-
-      // 确保之前的连接已完全断开
-      try {
-        await appKit.disconnect();
-      } catch (disconnectErr) {
-        console.log(
-          "断开之前连接时出错（可能没有连接）:",
-          disconnectErr.message,
-        );
-      }
-
-      // 等待一小段时间确保断开完成
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
+      await appKit.disconnect();
       appKit.open();
     }
   } catch (err) {
@@ -252,7 +271,6 @@ const openModal = async () => {
     error.value = "打开连接界面失败: " + err.message;
     isConnecting.value = false;
   }
-  // 注意：不在这里设置 isConnecting.value = false，让连接状态监听器来处理
 };
 
 // 断开连接
@@ -346,13 +364,194 @@ const getCurrencySymbol = () => {
   }
 };
 
+// 测试签名功能
+const testSignMessage = async () => {
+  try {
+    signatureResult.value = "";
+    error.value = "";
+
+    if (!address.value || !appKit) {
+      error.value = "请先连接钱包";
+      return;
+    }
+
+    const message = signMessage.value.trim();
+    if (!message) {
+      error.value = "请输入要签名的消息";
+      return;
+    }
+
+    // 检查是否为Tron链
+    const isTronChain =
+      chainId.value &&
+      (chainId.value === "0x2b6653dc" ||
+        chainId.value === "0x94a9059e" ||
+        chainId.value.toString().includes("tron"));
+
+    if (isTronChain) {
+      // Tron链签名
+      if (window.tronWeb && window.tronWeb.ready) {
+        const signature = await window.tronWeb.trx.sign(message);
+        signatureResult.value = signature;
+      } else {
+        error.value = "TronWeb 未就绪，请确保使用支持Tron的钱包";
+      }
+    } else {
+      // EVM链签名
+      const walletProvider = appKit.getWalletProvider();
+      if (walletProvider) {
+        const ethersProvider = new ethers.providers.Web3Provider(
+          walletProvider,
+        );
+        const signer = ethersProvider.getSigner();
+        const signature = await signer.signMessage(message);
+        signatureResult.value = signature;
+      } else {
+        error.value = "无法获取钱包提供者";
+      }
+    }
+
+    console.log("签名成功:", signatureResult.value);
+  } catch (err) {
+    console.error("签名失败:", err);
+    error.value = "签名失败: " + err.message;
+  }
+};
+
+// 测试转账功能
+const testTransfer = async () => {
+  try {
+    transferResult.value = "";
+    error.value = "";
+
+    if (!address.value || !appKit) {
+      error.value = "请先连接钱包";
+      return;
+    }
+
+    const toAddress = transferTo.value.trim();
+    const amount = transferAmount.value;
+
+    if (!toAddress || !amount || parseFloat(amount) <= 0) {
+      error.value = "请输入有效的接收地址和转账金额";
+      return;
+    }
+
+    // 检查是否为Tron链
+    const isTronChain =
+      chainId.value &&
+      (chainId.value === "0x2b6653dc" ||
+        chainId.value === "0x94a9059e" ||
+        chainId.value.toString().includes("tron"));
+
+    if (isTronChain) {
+      // Tron链转账
+      if (window.tronWeb && window.tronWeb.ready) {
+        const amountSun = window.tronWeb.toSun(amount); // 转换为Sun单位
+        const transaction = await window.tronWeb.transactionBuilder.sendTrx(
+          toAddress,
+          amountSun,
+          address.value,
+        );
+        const signedTx = await window.tronWeb.trx.sign(transaction);
+        const result = await window.tronWeb.trx.sendRawTransaction(signedTx);
+
+        if (result.result) {
+          transferResult.value = `转账成功! 交易哈希: ${result.txid}`;
+          // 刷新余额
+          setTimeout(() => getBalance(), 2000);
+        } else {
+          error.value = "Tron转账失败: " + (result.message || "未知错误");
+        }
+      } else {
+        error.value = "TronWeb 未就绪，请确保使用支持Tron的钱包";
+      }
+    } else {
+      // EVM链转账
+      const walletProvider = appKit.getWalletProvider();
+      if (walletProvider) {
+        const ethersProvider = new ethers.providers.Web3Provider(
+          walletProvider,
+        );
+        const signer = ethersProvider.getSigner();
+
+        const tx = {
+          to: toAddress,
+          value: ethers.utils.parseEther(amount.toString()),
+          gasLimit: 21000,
+        };
+
+        const transaction = await signer.sendTransaction(tx);
+        transferResult.value = `转账已发送! 交易哈希: ${transaction.hash}`;
+
+        // 等待交易确认
+        const receipt = await transaction.wait();
+        transferResult.value = `转账成功! 交易哈希: ${transaction.hash} (已确认)`;
+
+        // 刷新余额
+        setTimeout(() => getBalance(), 2000);
+      } else {
+        error.value = "无法获取钱包提供者";
+      }
+    }
+
+    console.log("转账操作完成:", transferResult.value);
+  } catch (err) {
+    console.error("转账失败:", err);
+    error.value = "转账失败: " + err.message;
+  }
+};
+
 // 移动端触摸事件处理
+let touchStartTime = 0;
+let touchMoved = false;
+let touchHandled = false;
+
 const handleTouchStart = (event) => {
-  event.preventDefault();
+  console.log("触摸开始");
+  touchStartTime = Date.now();
+  touchMoved = false;
+  touchHandled = false;
+
+  // 添加触摸反馈效果
+  event.target.style.transform = "scale(0.98)";
+  event.target.style.opacity = "0.8";
+
+  // 重置触摸状态的定时器
+  setTimeout(() => {
+    touchHandled = false;
+  }, 1000);
 };
 
 const handleTouchEnd = (event) => {
-  event.preventDefault();
+  console.log("触摸结束");
+  const touchEndTime = Date.now();
+  const touchDuration = touchEndTime - touchStartTime;
+
+  // 恢复按钮样式
+  event.target.style.transform = "";
+  event.target.style.opacity = "";
+
+  // 如果是快速点击且没有移动，且没有被处理过，则触发点击事件
+  if (
+    touchDuration < 500 &&
+    !touchMoved &&
+    !isConnecting.value &&
+    !touchHandled
+  ) {
+    touchHandled = true;
+    console.log("触摸触发连接");
+    // 阻止后续的点击事件
+    event.preventDefault();
+    event.stopPropagation();
+    openModal();
+  }
+};
+
+// 处理触摸移动事件
+const handleTouchMove = (event) => {
+  touchMoved = true;
+  console.log("触摸移动，取消点击");
 };
 </script>
 
@@ -450,11 +649,46 @@ h2 {
   margin-top: 15px;
   width: 100%;
   max-width: 300px;
+  position: relative;
+  overflow: hidden;
 }
 
 .custom-connect-btn:hover {
   background: #0056b3;
   transform: translateY(-1px);
+}
+
+.custom-connect-btn:active {
+  transform: scale(0.98);
+  background: #004085;
+}
+
+/* 移动端触摸优化 */
+.custom-connect-btn {
+  -webkit-tap-highlight-color: rgba(0, 123, 255, 0.3);
+  tap-highlight-color: rgba(0, 123, 255, 0.3);
+}
+
+/* 添加触摸反馈动画 */
+.custom-connect-btn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition:
+    width 0.3s ease,
+    height 0.3s ease;
+  pointer-events: none;
+}
+
+.custom-connect-btn:active::before {
+  width: 300px;
+  height: 300px;
 }
 
 .action-btn {
@@ -536,6 +770,23 @@ button:disabled {
     font-size: 18px;
     padding: 16px 24px;
     min-height: 56px;
+    /* 增强移动端触摸区域 */
+    min-width: 280px;
+    border: 2px solid transparent;
+  }
+
+  .custom-connect-btn:active {
+    transform: scale(0.95);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  /* 移动端特殊处理 */
+  @supports (-webkit-touch-callout: none) {
+    .custom-connect-btn {
+      -webkit-appearance: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
   }
 
   .action-buttons {
@@ -555,6 +806,163 @@ button:disabled {
 
   .networks {
     justify-content: center;
+  }
+}
+
+/* 测试功能样式 */
+.test-section {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.test-section h4 {
+  margin: 0 0 20px 0;
+  color: white;
+  text-align: center;
+  font-size: 18px;
+}
+
+.test-group {
+  margin-bottom: 25px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.test-group h5 {
+  margin: 0 0 15px 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.input-group {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+.test-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 14px;
+  min-height: 40px;
+}
+
+.test-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.test-input:focus {
+  outline: none;
+  border-color: #007bff;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.test-btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #007bff;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.test-btn:hover:not(:disabled) {
+  background: #0056b3;
+  transform: translateY(-1px);
+}
+
+.test-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.transfer-btn {
+  background: #28a745;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.transfer-btn:hover:not(:disabled) {
+  background: #1e7e34;
+}
+
+.transfer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.result-box {
+  margin-top: 15px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.result-box strong {
+  color: rgba(255, 255, 255, 0.9);
+  display: block;
+  margin-bottom: 8px;
+}
+
+.signature-result,
+.transfer-result {
+  font-family: monospace;
+  font-size: 12px;
+  color: #90ee90;
+  word-break: break-all;
+  line-height: 1.4;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(144, 238, 144, 0.3);
+}
+
+/* 移动端测试功能优化 */
+@media (max-width: 768px) {
+  .test-section {
+    padding: 15px;
+  }
+
+  .test-group {
+    padding: 12px;
+  }
+
+  .input-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .test-input {
+    margin-bottom: 10px;
+  }
+
+  .test-btn {
+    width: 100%;
+    min-height: 48px;
+  }
+
+  .signature-result,
+  .transfer-result {
+    font-size: 11px;
   }
 }
 
