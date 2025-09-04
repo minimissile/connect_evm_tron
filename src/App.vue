@@ -17,6 +17,14 @@
     />
     <TronWalletConnect />
 
+    <div
+      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"
+    />
+    <TronWalletAdapterDemo />
+    
+    <hr />
+    <TronWalletVueUI />
+
     <!--    <div-->
     <!--      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"-->
     <!--    />-->
@@ -60,6 +68,8 @@ import WalletconnectSui from "./components/WalletconnectSui.vue";
 import Test1 from "./components/Test1.vue";
 import TronAppKit from "./components/TronAppKit.vue";
 import Deeplink from "./components/Deeplink.vue";
+import TronWalletAdapterDemo from "./components/TronWalletAdapterDemo.vue";
+import TronWalletVueUI from "./components/TronWalletVueUI.vue";
 </script>
 
 <style>
