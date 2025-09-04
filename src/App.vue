@@ -2,33 +2,27 @@
   <div id="app">
     <button onclick="window.location.reload();">刷新</button>
 
-    <div
-      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"
-    />
-    <Deeplink />
+    <!--    <div-->
+    <!--      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"-->
+    <!--    />-->
+    <!--    <Deeplink />-->
 
-    <div
-      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"
-    />
-    <TronWalletConnectDirect />
+    <!--    <div-->
+    <!--      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"-->
+    <!--    />-->
+    <!--    <TokenPocketDeepLink />-->
 
-    <div
-      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"
-    />
-    <TronWalletConnect />
-
-    <div
-      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"
-    />
-    <TronWalletAdapterDemo />
-    
-    <hr />
-    <TronWalletVueUI />
+    <!-- -->
 
     <!--    <div-->
     <!--      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"-->
     <!--    />-->
     <!--    <Walletconnect />-->
+
+    <div
+      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"
+    />
+    <OKXConnectDemo />
 
     <!--    <div-->
     <!--      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"-->
@@ -70,6 +64,8 @@ import TronAppKit from "./components/TronAppKit.vue";
 import Deeplink from "./components/Deeplink.vue";
 import TronWalletAdapterDemo from "./components/TronWalletAdapterDemo.vue";
 import TronWalletVueUI from "./components/TronWalletVueUI.vue";
+import TokenPocketDeepLink from "./components/TokenPocketDeepLink.vue";
+import OKXConnectDemo from "./components/OKXConnectDemo.vue";
 </script>
 
 <style>

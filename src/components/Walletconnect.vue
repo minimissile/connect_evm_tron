@@ -238,18 +238,33 @@ const projectId = "c34b3bde7397ea7ed6780e9ce1d5194d";
 let appKit: AppKit = null;
 
 // 初始化 AppKit 实例
-const initializeAppKit = (selectedNetwork = bsc) => {
+const initializeAppKit = (selectedNetwork: any = null) => {
   try {
     // 创建 Ethers5 适配器
     const ethersAdapter = new Ethers5Adapter();
 
-    // appKit.addNetwork();
+    // 确定默认网络 - 根据用户选择的链ID
+     let defaultNet: typeof mainnet | typeof bsc = bsc; // 默认使用BSC
+    
+    // 根据用户选择确定默认网络
+    if (selectedNetwork && selectedNetwork.id) {
+      const chainId = selectedNetwork.id;
+      // 如果选择的是ETH (链ID为1)
+      if (chainId === 1) {
+        defaultNet = mainnet;
+      }
+      // 如果选择的是BSC (链ID为56) 
+      else if (chainId === 56) {
+        defaultNet = bsc;
+      }
+      // 对于其他网络，使用BSC作为默认
+    }
 
     // 创建 AppKit 实例
     appKit = createAppKit({
       projectId,
       adapters: [ethersAdapter],
-      networks: [mainnet, bsc], // 保持所有网络可用
+      networks: [mainnet, bsc], // 保持EVM网络可用
       metadata: {
         name: "WalletConnect v3 Demo",
         description: "Vue3 WalletConnect AppKit 示例应用，支持Tron链连接",
@@ -267,7 +282,7 @@ const initializeAppKit = (selectedNetwork = bsc) => {
         "--w3m-z-index": 9999,
         "--w3m-accent": "#007bff",
       },
-      defaultNetwork: selectedNetwork, // 使用选择的网络
+      defaultNetwork: defaultNet, // 使用确定的默认网络
     });
 
     // 监听连接状态变化
@@ -299,7 +314,7 @@ const initializeAppKit = (selectedNetwork = bsc) => {
         isConnected.value = true;
         isConnecting.value = false; // 连接成功，重置连接状态
         address.value = account.address || "";
-        chainId.value = account.chainId || null;
+        chainId.value = appKit.getCaipAddress()?.split(':')[1] || null;
         error.value = ""; // 清除错误信息
 
         // 获取余额
@@ -576,10 +591,10 @@ const testTransfer = async () => {
     if (isTronChain) {
       // Tron链转账
       if (window.tronWeb && window.tronWeb.ready) {
-        const amountSun = window.tronWeb.toSun(amount); // 转换为Sun单位
+        const amountSun = window.tronWeb.toSun(parseFloat(amount)); // 转换为Sun单位
         const transaction = await window.tronWeb.transactionBuilder.sendTrx(
           toAddress,
-          amountSun,
+          parseInt(amountSun.toString()),
           address.value,
         );
         const signedTx = await window.tronWeb.trx.sign(transaction);

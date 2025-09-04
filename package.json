@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@okxconnect/universal-provider": "^1.9.0",
     "@reown/appkit": "^1.8.1",
     "@reown/appkit-adapter-ethers5": "^1.8.1",
     "@reown/appkit-common": "^1.8.1",

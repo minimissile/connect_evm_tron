@@ -386,7 +386,9 @@ export default {
 
         // 命中当前会话：优先匹配 actionId
         const matchedCurrent =
-          !!actionId && this.currentActionId && actionId === this.currentActionId;
+          !!actionId &&
+          this.currentActionId &&
+          actionId === this.currentActionId;
 
         // 在钱包内置浏览器中重新打开页面的场景：没有本地 actionId，但带有有效的回调参数
         const canAcceptWithoutMatch =
@@ -402,7 +404,10 @@ export default {
               this.connected = true;
               this.address = userAddress;
               this.error = "";
-              console.log("Official login success:", { address: userAddress, message });
+              console.log("Official login success:", {
+                address: userAddress,
+                message,
+              });
               // 获取余额（修正 fetchBalance -> getBalance）
               this.getBalance();
               // 清理参数
@@ -464,6 +469,8 @@ export default {
 
     // 测试官方回调功能（开发用）
     testOfficialCallback() {
+      console.log("测试官方回调功能", window.location);
+
       if (!this.currentActionId) {
         this.currentActionId = this.generateActionId();
         this.officialLoginPending = true;
