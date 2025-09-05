@@ -16,7 +16,7 @@
             <div class="button-group">
               <!-- 多功能钱包按钮 -->
               <WalletActionButton class="action-button" />
-              
+
               <!-- 分离的操作按钮 -->
               <div class="separate-buttons">
                 <WalletSelectButton class="select-button">
@@ -38,8 +38,11 @@
             <div class="info-grid">
               <div class="info-item">
                 <span class="label">连接状态:</span>
-                <span class="value" :class="{ connected: connected, disconnected: !connected }">
-                  {{ connected ? '已连接' : '未连接' }}
+                <span
+                  class="value"
+                  :class="{ connected: connected, disconnected: !connected }"
+                >
+                  {{ connected ? "已连接" : "未连接" }}
                 </span>
               </div>
               <div class="info-item" v-if="wallet">
@@ -53,7 +56,9 @@
               <div class="info-item" v-if="connected">
                 <span class="label">余额:</span>
                 <span class="value">{{ balance }} TRX</span>
-                <button @click="refreshBalance" class="refresh-btn">刷新</button>
+                <button @click="refreshBalance" class="refresh-btn">
+                  刷新
+                </button>
               </div>
             </div>
           </div>
@@ -61,18 +66,22 @@
           <!-- 功能测试区域 -->
           <div v-if="connected" class="feature-tests">
             <h3>功能测试</h3>
-            
+
             <!-- 签名测试 -->
             <div class="test-section">
               <h4>消息签名</h4>
               <div class="sign-form">
-                <input 
-                  v-model="messageToSign" 
-                  type="text" 
+                <input
+                  v-model="messageToSign"
+                  type="text"
                   placeholder="输入要签名的消息"
                   class="message-input"
+                />
+                <button
+                  @click="signMessage"
+                  :disabled="!messageToSign"
+                  class="sign-btn"
                 >
-                <button @click="signMessage" :disabled="!messageToSign" class="sign-btn">
                   签名消息
                 </button>
               </div>
@@ -86,22 +95,22 @@
             <div class="test-section">
               <h4>发送交易</h4>
               <div class="transaction-form">
-                <input 
-                  v-model="recipientAddress" 
-                  type="text" 
+                <input
+                  v-model="recipientAddress"
+                  type="text"
                   placeholder="接收地址"
                   class="address-input"
-                >
-                <input 
-                  v-model="transferAmount" 
-                  type="number" 
+                />
+                <input
+                  v-model="transferAmount"
+                  type="number"
                   placeholder="转账金额 (TRX)"
                   class="amount-input"
                   step="0.000001"
                   min="0"
-                >
-                <button 
-                  @click="sendTransaction" 
+                />
+                <button
+                  @click="sendTransaction"
                   :disabled="!recipientAddress || !transferAmount"
                   class="send-btn"
                 >
@@ -115,14 +124,20 @@
           <div v-if="error" class="error-section">
             <h3>错误信息</h3>
             <p class="error-message">{{ error }}</p>
-            <button @click="clearError" class="clear-error-btn">清除错误</button>
+            <button @click="clearError" class="clear-error-btn">
+              清除错误
+            </button>
           </div>
 
           <!-- 事件日志 -->
           <div class="event-logs">
             <h3>事件日志</h3>
             <div class="logs-container">
-              <div v-for="(log, index) in eventLogs" :key="index" class="log-item">
+              <div
+                v-for="(log, index) in eventLogs"
+                :key="index"
+                class="log-item"
+              >
                 <span class="log-time">{{ log.time }}</span>
                 <span class="log-type" :class="log.type">{{ log.type }}</span>
                 <span class="log-message">{{ log.message }}</span>
@@ -137,155 +152,169 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useWallet, WalletProvider } from '@tronweb3/tronwallet-adapter-vue-hooks'
-import { 
-  WalletModalProvider, 
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import {
+  useWallet,
+  WalletProvider,
+} from "@tronweb3/tronwallet-adapter-vue-hooks";
+import {
+  WalletModalProvider,
   WalletActionButton,
   WalletSelectButton,
   WalletConnectButton,
-  WalletDisconnectButton
-} from '@tronweb3/tronwallet-adapter-vue-ui'
-import { 
-  WalletDisconnectedError, 
-  WalletError, 
-  WalletNotFoundError 
-} from '@tronweb3/tronwallet-abstract-adapter'
+  WalletDisconnectButton,
+} from "@tronweb3/tronwallet-adapter-vue-ui";
+import {
+  WalletDisconnectedError,
+  WalletError,
+  WalletNotFoundError,
+} from "@tronweb3/tronwallet-abstract-adapter";
 
 // 导入样式
-import '@tronweb3/tronwallet-adapter-vue-ui/style.css'
+// import '@tronweb3/tronwallet-adapter-vue-ui/style.css'
 
 // 响应式数据
-const balance = ref('0')
-const error = ref('')
-const eventLogs = ref([])
-const messageToSign = ref('Hello TronWallet Vue UI!')
-const signedMessage = ref('')
-const recipientAddress = ref('')
-const transferAmount = ref('')
+const balance = ref("0");
+const error = ref("");
+const eventLogs = ref([]);
+const messageToSign = ref("Hello TronWallet Vue UI!");
+const signedMessage = ref("");
+const recipientAddress = ref("");
+const transferAmount = ref("");
 
 // 使用钱包 hooks
-const { wallet, connected, publicKey, signMessage: walletSignMessage, sendTransaction: walletSendTransaction } = useWallet()
+const {
+  wallet,
+  connected,
+  publicKey,
+  signMessage: walletSignMessage,
+  sendTransaction: walletSendTransaction,
+} = useWallet();
 
 // 计算属性
-const walletName = computed(() => wallet.value?.adapter?.name || '未选择')
+const walletName = computed(() => wallet.value?.adapter?.name || "未选择");
 
 // 生命周期
 onMounted(() => {
-  addLog('info', 'TronWallet Vue UI 组件已加载')
-  
+  addLog("info", "TronWallet Vue UI 组件已加载");
+
   // 如果已连接，获取余额
   if (connected.value) {
-    refreshBalance()
+    refreshBalance();
   }
-})
+});
 
 // 方法定义
 function onError(e) {
-  let errorMessage = ''
-  
+  let errorMessage = "";
+
   if (e instanceof WalletNotFoundError) {
-    errorMessage = `钱包未找到: ${e.message}`
-    addLog('error', errorMessage)
+    errorMessage = `钱包未找到: ${e.message}`;
+    addLog("error", errorMessage);
   } else if (e instanceof WalletDisconnectedError) {
-    errorMessage = `钱包已断开: ${e.message}`
-    addLog('error', errorMessage)
+    errorMessage = `钱包已断开: ${e.message}`;
+    addLog("error", errorMessage);
   } else if (e instanceof WalletError) {
-    errorMessage = `钱包错误: ${e.message}`
-    addLog('error', errorMessage)
+    errorMessage = `钱包错误: ${e.message}`;
+    addLog("error", errorMessage);
   } else {
-    errorMessage = `未知错误: ${e.message || e}`
-    addLog('error', errorMessage)
+    errorMessage = `未知错误: ${e.message || e}`;
+    addLog("error", errorMessage);
   }
-  
-  error.value = errorMessage
-  console.error('Wallet Error:', e)
+
+  error.value = errorMessage;
+  console.error("Wallet Error:", e);
 }
 
 // 刷新余额
 async function refreshBalance() {
   if (!connected.value || !publicKey.value) {
-    balance.value = '0'
-    return
+    balance.value = "0";
+    return;
   }
-  
+
   try {
-    addLog('info', '正在获取余额...')
-    const response = await fetch(`https://api.trongrid.io/v1/accounts/${publicKey.value}`)
-    const data = await response.json()
-    
+    addLog("info", "正在获取余额...");
+    const response = await fetch(
+      `https://api.trongrid.io/v1/accounts/${publicKey.value}`,
+    );
+    const data = await response.json();
+
     if (data.data && data.data.length > 0) {
-      const balanceInSun = data.data[0].balance || 0
-      balance.value = (balanceInSun / 1000000).toFixed(6)
+      const balanceInSun = data.data[0].balance || 0;
+      balance.value = (balanceInSun / 1000000).toFixed(6);
     } else {
-      balance.value = '0'
+      balance.value = "0";
     }
-    
-    addLog('success', `余额已更新: ${balance.value} TRX`)
+
+    addLog("success", `余额已更新: ${balance.value} TRX`);
   } catch (err) {
-    const errorMsg = `获取余额失败: ${err.message}`
-    error.value = errorMsg
-    addLog('error', errorMsg)
+    const errorMsg = `获取余额失败: ${err.message}`;
+    error.value = errorMsg;
+    addLog("error", errorMsg);
   }
 }
 
 // 签名消息
 async function signMessage() {
   if (!connected.value || !messageToSign.value) {
-    error.value = '请先连接钱包并输入要签名的消息'
-    return
+    error.value = "请先连接钱包并输入要签名的消息";
+    return;
   }
-  
+
   try {
-    addLog('info', `开始签名消息: ${messageToSign.value}`)
-    const signature = await walletSignMessage(messageToSign.value)
-    signedMessage.value = signature
-    addLog('success', '消息签名成功')
-    error.value = ''
+    addLog("info", `开始签名消息: ${messageToSign.value}`);
+    const signature = await walletSignMessage(messageToSign.value);
+    signedMessage.value = signature;
+    addLog("success", "消息签名成功");
+    error.value = "";
   } catch (err) {
-    const errorMsg = `签名失败: ${err.message}`
-    error.value = errorMsg
-    addLog('error', errorMsg)
+    const errorMsg = `签名失败: ${err.message}`;
+    error.value = errorMsg;
+    addLog("error", errorMsg);
   }
 }
 
 // 发送交易
 async function sendTransaction() {
   if (!connected.value || !recipientAddress.value || !transferAmount.value) {
-    error.value = '请填写完整的交易信息'
-    return
+    error.value = "请填写完整的交易信息";
+    return;
   }
-  
+
   try {
-    addLog('info', `准备发送 ${transferAmount.value} TRX 到 ${recipientAddress.value}`)
-    
+    addLog(
+      "info",
+      `准备发送 ${transferAmount.value} TRX 到 ${recipientAddress.value}`,
+    );
+
     // 构建交易参数
     const transaction = {
       to: recipientAddress.value,
       value: parseFloat(transferAmount.value) * 1000000, // 转换为 SUN
-    }
-    
-    const result = await walletSendTransaction(transaction)
-    addLog('success', `交易发送成功: ${result}`)
-    
+    };
+
+    const result = await walletSendTransaction(transaction);
+    addLog("success", `交易发送成功: ${result}`);
+
     // 清空表单
-    recipientAddress.value = ''
-    transferAmount.value = ''
-    
+    recipientAddress.value = "";
+    transferAmount.value = "";
+
     // 刷新余额
-    setTimeout(refreshBalance, 2000)
-    
-    error.value = ''
+    setTimeout(refreshBalance, 2000);
+
+    error.value = "";
   } catch (err) {
-    const errorMsg = `交易发送失败: ${err.message}`
-    error.value = errorMsg
-    addLog('error', errorMsg)
+    const errorMsg = `交易发送失败: ${err.message}`;
+    error.value = errorMsg;
+    addLog("error", errorMsg);
   }
 }
 
 // 清除错误
 function clearError() {
-  error.value = ''
+  error.value = "";
 }
 
 // 日志管理
@@ -293,44 +322,44 @@ function addLog(type, message) {
   const log = {
     time: new Date().toLocaleTimeString(),
     type,
-    message
-  }
-  eventLogs.value.unshift(log)
-  
+    message,
+  };
+  eventLogs.value.unshift(log);
+
   // 限制日志数量
   if (eventLogs.value.length > 50) {
-    eventLogs.value = eventLogs.value.slice(0, 50)
+    eventLogs.value = eventLogs.value.slice(0, 50);
   }
 }
 
 function clearLogs() {
-  eventLogs.value = []
+  eventLogs.value = [];
 }
 
 // 监听连接状态变化
 const unwatchConnected = computed(() => {
   if (connected.value) {
-    addLog('success', `钱包已连接: ${publicKey.value}`)
-    refreshBalance()
+    addLog("success", `钱包已连接: ${publicKey.value}`);
+    refreshBalance();
   } else {
-    addLog('info', '钱包已断开连接')
-    balance.value = '0'
-    signedMessage.value = ''
+    addLog("info", "钱包已断开连接");
+    balance.value = "0";
+    signedMessage.value = "";
   }
-})
+});
 
 // 监听钱包变化
 const unwatchWallet = computed(() => {
   if (wallet.value) {
-    addLog('info', `当前钱包: ${wallet.value.adapter.name}`)
+    addLog("info", `当前钱包: ${wallet.value.adapter.name}`);
   }
-})
+});
 
 // 清理
 onUnmounted(() => {
-  if (typeof unwatchConnected === 'function') unwatchConnected()
-  if (typeof unwatchWallet === 'function') unwatchWallet()
-})
+  if (typeof unwatchConnected === "function") unwatchConnected();
+  if (typeof unwatchWallet === "function") unwatchWallet();
+});
 </script>
 
 <style scoped>
@@ -338,7 +367,8 @@ onUnmounted(() => {
   max-width: 1000px;
   margin: 0 auto;
   padding: 20px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .description {
@@ -458,7 +488,7 @@ onUnmounted(() => {
 
 .value {
   color: #333;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: "Monaco", "Menlo", monospace;
 }
 
 .value.address {
@@ -627,7 +657,7 @@ onUnmounted(() => {
 .log-time {
   color: #666;
   margin-right: 10px;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: "Monaco", "Menlo", monospace;
   min-width: 80px;
 }
 
@@ -682,16 +712,16 @@ onUnmounted(() => {
   .info-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .separate-buttons {
     flex-direction: column;
   }
-  
+
   .sign-form,
   .transaction-form {
     flex-direction: column;
   }
-  
+
   .message-input,
   .address-input,
   .amount-input {

@@ -1,11 +1,17 @@
 import "./assets/main.css";
-import VConsole from "vconsole";
-
 import { createApp } from "vue";
 import App from "./App.vue";
 import { Buffer } from "buffer";
+import VConsole from "vconsole";
+import ElementPlus from "element-plus";
+import "element-plus/dist/index.css";
+
 window.Buffer = Buffer;
 
 const vConsole = new VConsole();
 
-createApp(App).mount("#app");
+const app = createApp(App);
+
+app.use(ElementPlus);
+
+app.mount("#app");

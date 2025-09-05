@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="36px" height="36px" viewBox="0 0 36 36" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>rypto</title>
+    <defs>
+        <linearGradient x1="49.9988171%" y1="-0.000134045155%" x2="49.9988171%" y2="100.000146%" id="linearGradient-1">
+            <stop stop-color="#25376C" offset="0%"></stop>
+            <stop stop-color="#1F1F49" offset="100%"></stop>
+        </linearGradient>
+        <linearGradient x1="49.9989213%" y1="100.000146%" x2="49.9989213%" y2="-0.000134045155%" id="linearGradient-2">
+            <stop stop-color="#25376C" offset="0%"></stop>
+            <stop stop-color="#1F1F49" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="rypto" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="crypto-com-coin-cro-logo" transform="translate(2.000000, 0.000000)" fill-rule="nonzero">
+            <polygon id="路径" fill="url(#linearGradient-1)" points="15.5925674 0 0 8.99964036 0 27.0003596 15.5925674 36 31.1851349 27.0003596 31.1851349 8.99964036"></polygon>
+            <polygon id="路径" fill="url(#linearGradient-2)" points="15.5925674 0 0 8.99964036 0 27.0003596 15.5925674 36"></polygon>
+            <path d="M21.6704895,7.77686314 L9.43408591,7.77686314 L8.01278721,14.013027 L23.1709091,14.013027 L21.6704895,7.77686314 Z M11.6048751,22.5796603 L11.6048751,18.4351648 L7.97394605,16.144975 L3.86829171,19.1846553 L9.47292707,28.9352248 L11.7242757,28.9352248 L14.3683516,26.447952 L14.3683516,25.2237363 L11.6048751,22.5796603 Z" id="形状" fill="#FFFFFF"></path>
+            <polygon id="路径" fill="#FFFFFF" points="19.53998 14.961039 11.6451548 14.961039 12.9484915 18.4351648 12.5543257 22.3437363 18.6336863 22.3437363 18.2395205 18.4351648"></polygon>
+            <polygon id="路径" fill="#FFFFFF" points="23.1709091 16.1046953 19.5788212 18.4337263 19.5788212 22.5782218 16.8556244 25.2222977 16.8556244 26.4465135 19.4997003 28.8935065 21.7107692 28.8935065 27.2765634 19.1832168"></polygon>
+        </g>
+    </g>
+</svg>

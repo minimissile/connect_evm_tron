@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="36px" height="36px" viewBox="0 0 36 36" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Ethereum</title>
+    <g id="Ethereum" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="编组-8">
+            <path d="M18,0 C27.9412835,0 36,8.05871649 36,18 C36,27.9412835 27.9412835,36 18,36 C8.05920534,36 0,27.9412835 0,18 C0,8.05871649 8.05920534,0 18,0" id="Fill-3" fill="#596EA6"></path>
+            <polyline id="Fill-4" fill="#B0BBD5" points="26.9943782 18.2473588 18.5602238 14.4788029 18.5602238 4.49987779 26.9943782 18.2473588"></polyline>
+            <polyline id="Fill-5" fill="#FFFFFE" points="18.5602238 4.49987779 10.1250917 18.2473588 18.5602238 14.4788029 18.5602238 4.49987779"></polyline>
+            <polyline id="Fill-6" fill="#B0BBD5" points="18.5602238 31.494256 18.5602238 24.7138861 27.0002444 19.8180386 18.5602238 31.494256"></polyline>
+            <polyline id="Fill-7" fill="#FFFFFE" points="18.5602238 31.494256 18.5602238 24.7129084 10.1250917 19.8180386 18.5602238 31.494256"></polyline>
+            <polyline id="Fill-8" fill="#7387B6" points="18.5602238 23.1446729 18.5602238 14.4807583 26.9943782 18.2473588 18.5602238 23.1446729"></polyline>
+            <polyline id="Fill-9" fill="#B0BBD5" points="18.5602238 23.1446729 10.1250917 18.2473588 18.5602238 14.4807583 18.5602238 23.1446729"></polyline>
+        </g>
+    </g>
+</svg>

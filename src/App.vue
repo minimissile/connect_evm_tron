@@ -2,6 +2,8 @@
   <div id="app">
     <button onclick="window.location.reload();">刷新</button>
 
+    <BaseDemo />
+
     <!--    <div-->
     <!--      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"-->
     <!--    />-->
@@ -19,10 +21,15 @@
     <!--    />-->
     <!--    <Walletconnect />-->
 
-    <div
-      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"
-    />
-    <OKXConnectDemo />
+    <!--    <div-->
+    <!--      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"-->
+    <!--    />-->
+    <!--    <OKXBasicDemo />-->
+
+    <!--    <div-->
+    <!--      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"-->
+    <!--    />-->
+    <!--    <OKXConnectDemo />-->
 
     <!--    <div-->
     <!--      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"-->
@@ -66,6 +73,8 @@ import TronWalletAdapterDemo from "./components/TronWalletAdapterDemo.vue";
 import TronWalletVueUI from "./components/TronWalletVueUI.vue";
 import TokenPocketDeepLink from "./components/TokenPocketDeepLink.vue";
 import OKXConnectDemo from "./components/OKXConnectDemo.vue";
+import OKXBasicDemo from "./components/OKXBasicDemo.vue";
+import BaseDemo from "./components/BaseDemo.vue";
 </script>
 
 <style>
