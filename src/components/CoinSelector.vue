@@ -3,7 +3,7 @@
     <div class="deposit-coin" @click="isExpand = !isExpand" :class="{ 'is-active': isExpand }">
       <div class="deposit-coin-left-name">
         <div class="icon-box">
-          <img v-if="coinName" :src="require('@/assets/coins/png/' + coinName + '.png')" class="img-coin" />
+          <img v-if="coinName" :src="'@/assets/coins/png/' + coinName + '.png'" class="img-coin" alt="" />
         </div>
         <span class="short-name">{{ coinName === 'BSC' ? 'BNB' : coinName }}</span>
         <!-- <span class="full-name">Tether</span> -->
@@ -25,7 +25,7 @@
               <div class="input-prefix">
                 <i class="iconfont icon-icon_search"></i>
               </div>
-              <input type="text" :placeholder="$t('newSystem.fast_search_coin')" title="" class="input-inner" />
+              <input type="text" placeholder="fast_search_coin" title="" class="input-inner" />
               <div class="input-suffix">
                 <i class="iconfont icon-cancel me-4" style="display: none"></i>
               </div>
@@ -33,7 +33,7 @@
           </div>
           <div v-if="hideHistoryCoinList" class="history-coin-box">
             <div class="sec-title flex justify-between items-center">
-              <span>{{ $t('newSystem.coin_select_history_records') }}</span>
+              <span>coin_select_history_records</span>
               <i class="iconfont icon-icon-delete" @click="deleteHistoryCoins"></i>
             </div>
             <div class="row-coin">
@@ -49,7 +49,7 @@
           </div>
           <div class="hot-coin-box">
             <div class="sec-title flex align-middle">
-              <span class="me-5">{{ $t('newSystem.hot_coins') }}</span>
+              <span class="me-5">hot_coins</span>
               <img src="@/assets/image/asset/fire.svg" alt="" />
             </div>
             <div class="row-coin">
@@ -64,7 +64,7 @@
             </div>
           </div>
           <div class="coin-list-box">
-            <div class="sec-title">{{ $t('newSystem.coins_list') }}</div>
+            <div class="sec-title">coins_list</div>
             <div class="all-list">
               <div class="all-list-box">
                 <div role="group">
@@ -78,7 +78,7 @@
                     <div class="list-item">
                       <div class="item-inner">
                         <div class="left-sec">
-                          <img :src="require('@/assets/coins/png/' + coinItem + '.png')" class="img-coin" />
+                          <img :src="'@/assets/coins/png/' + coinItem + '.png'" class="img-coin" />
                           <span class="short-name">{{ coinItem === 'BSC' ? 'BNB' : coinItem }}</span>
                         </div>
                         <span class="full-name">{{ coinItem === 'BSC' ? 'BNB' : coinItem }}</span>
@@ -94,6 +94,7 @@
     </div>
   </div>
 </template>
+
 <style scoped lang="scss">
 .me-5 {
   margin-right: 5px;
@@ -326,7 +327,7 @@
 <script>
 let g_assetTypes = []
 let g_assetTypeMap = {}
-import { getBlockchainConfig } from '@/utils/api/asstes'
+// import { getBlockchainConfig } from '@/utils/api/asstes'
 export default {
   props: ['depositToken'],
   data() {
@@ -340,11 +341,15 @@ export default {
       hideHistoryCoinList: true,
       coinName: '',
       searchCoinHistory: [],
+      baseToken: 'USDT',
     }
   },
   created() {
-    this.coinName = this.depositToken || this.sysconfig.baseToken
+    this.coinName = this.depositToken || this.baseToken
     this.initAsync()
+  },
+  mounted() {
+    console.log('supportedCoins', this.supportedCoins)
   },
   methods: {
     deleteHistoryCoins() {
@@ -365,13 +370,61 @@ export default {
       const assetTypeMap = {}
 
       // USDT and futures margin account will already be displayed at top
-      assetTypes.push(this.sysconfig.baseToken)
+      assetTypes.push(this.baseToken)
       // assetTypes.push('FTUSDT');
-      assetTypeMap[this.sysconfig.baseToken] = []
+      assetTypeMap[this.baseToken] = []
       // assetTypeMap['FTUSDT'] = [];
 
       // Then query blockchain config
-      const resp = await getBlockchainConfig()
+      const resp = {
+        fiatDescription: 'Please contact online customer service for fiat deposits!',
+        supportMultiCoinDeposits: true,
+        supportedCoins: [
+          {
+            currency: 'USDT',
+            minDepositAmount: 1,
+            minWithdrawAmount: 10,
+            maxWithdrawAmount: 50000,
+            withdrawFee: 2,
+            targetCoins: ['USDT', 'USDT_TRC', 'USDTBEP20'],
+          },
+          {
+            currency: 'USDC',
+            minDepositAmount: 1,
+            minWithdrawAmount: 10,
+            maxWithdrawAmount: 50000,
+            withdrawFee: 2,
+            targetCoins: ['USDC', 'USDCTRC20', 'USDCBEP20'],
+          },
+          {
+            currency: 'ETH',
+            minDepositAmount: 0.001,
+            minWithdrawAmount: 0.001,
+            maxWithdrawAmount: 50000,
+            withdrawFee: 0.0006,
+            targetCoins: ['ETH'],
+          },
+          {
+            currency: 'BTC',
+            minDepositAmount: 0.0001,
+            minWithdrawAmount: 0.0001,
+            maxWithdrawAmount: 50000,
+            withdrawFee: 0.123,
+            targetCoins: ['BTC'],
+          },
+          {
+            currency: 'BNB',
+            minDepositAmount: 0.001,
+            minWithdrawAmount: 0.01,
+            maxWithdrawAmount: 50000,
+            withdrawFee: 0.003,
+            targetCoins: ['BSC'],
+          },
+        ],
+        identityVerified: true,
+        isWithdrawPasswordSet: true,
+        requiresWithdrawPassword: true,
+      }
       if (!resp) {
         // exit for invalid config
         console.error('Invalid blockchain config.')

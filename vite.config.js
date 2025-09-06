@@ -50,11 +50,19 @@ export default defineConfig({
       "@walletconnect/sign-client",
       "@walletconnect/modal",
     ],
+    exclude: [
+      "readable-stream/lib/internal/streams/end-of-stream.js",
+      "readable-stream/lib/internal/streams/pipeline.js"
+    ],
     force: true, // 强制重新预构建（清除旧缓存）
     esbuildOptions: {
       define: {
         global: "window",
       },
+      external: [
+        "readable-stream/lib/internal/streams/end-of-stream.js",
+        "readable-stream/lib/internal/streams/pipeline.js"
+      ],
       // 手动处理stream模块解析（兜底）
       plugins: [
         {
@@ -62,6 +70,11 @@ export default defineConfig({
           setup(build) {
             build.onResolve({ filter: /^stream$/ }, () => ({
               path: resolve(nodeModulesPath, "stream-browserify/index.js"),
+            }));
+            // 处理readable-stream内部模块
+            build.onResolve({ filter: /readable-stream\/lib\/internal/ }, () => ({
+              path: resolve(nodeModulesPath, "stream-browserify/index.js"),
+              external: true
             }));
           },
         },
