@@ -4,14 +4,14 @@
 
     <BaseDemo />
 
-    <!--    <div-->
-    <!--      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"-->
-    <!--    />-->
+    <div style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto" />
     <!--    <Deeplink />-->
+    <!--    <TronwalletAdapter />-->
 
-    <!--    <div-->
-    <!--      style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto"-->
-    <!--    />-->
+    <!--    <TronWalletConnectDirect />-->
+    <!--    <TronAppKit />-->
+
+    <div style="border-top: 2px solid #ddd; padding-top: 30px; margin: 10px auto" />
     <!--    <TokenPocketDeepLink />-->
 
     <!-- -->
@@ -59,22 +59,23 @@
 </template>
 
 <script setup>
-import WalletDashboard from "./components/WalletDashboard.vue";
-import HelloWorld from "./components/HelloWorld.vue";
-import Walletconnect from "./components/Walletconnect.vue";
-import Universal from "./components/Universal.vue";
-import TronWalletConnect from "./components/TronWalletConnect.vue";
-import TronWalletConnectDirect from "./components/TronWalletConnectDirect.vue";
-import WalletconnectSui from "./components/WalletconnectSui.vue";
-import Test1 from "./components/Test1.vue";
-import TronAppKit from "./components/TronAppKit.vue";
-import Deeplink from "./components/Deeplink.vue";
-import TronWalletAdapterDemo from "./components/TronWalletAdapterDemo.vue";
-import TronWalletVueUI from "./components/TronWalletVueUI.vue";
-import TokenPocketDeepLink from "./components/TokenPocketDeepLink.vue";
-import OKXConnectDemo from "./components/OKXConnectDemo.vue";
-import OKXBasicDemo from "./components/OKXBasicDemo.vue";
-import BaseDemo from "./components/BaseDemo.vue";
+import WalletDashboard from './components/WalletDashboard.vue'
+import HelloWorld from './components/HelloWorld.vue'
+import Walletconnect from './components/Walletconnect.vue'
+import Universal from './components/Universal.vue'
+import TronWalletConnect from './components/TronWalletConnect.vue'
+import TronWalletConnectDirect from './components/TronWalletConnectDirect.vue'
+import WalletconnectSui from './components/WalletconnectSui.vue'
+import Test1 from './components/Test1.vue'
+import TronAppKit from './components/TronAppKit.vue'
+import Deeplink from './components/Deeplink.vue'
+import TronWalletAdapterDemo from './components/TronWalletAdapterDemo.vue'
+import TronWalletVueUI from './components/TronWalletVueUI.vue'
+import TokenPocketDeepLink from './components/TokenPocketDeepLink.vue'
+import OKXConnectDemo from './components/OKXConnectDemo.vue'
+import OKXBasicDemo from './components/OKXBasicDemo.vue'
+import BaseDemo from './components/BaseDemo.vue'
+import TronwalletAdapter from './components/TronwalletAdapter.vue'
 </script>
 
 <style>

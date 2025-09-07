@@ -28,18 +28,12 @@
           <div class="selected-network">
             <span class="network-icon">🔗</span>
             <span class="network-name">{{ selectedNetwork.name }}</span>
-            <button @click="resetNetworkSelection" class="change-network-btn">
-              更换
-            </button>
+            <button @click="resetNetworkSelection" class="change-network-btn">更换</button>
           </div>
         </div>
 
-        <button
-          @click="connectWallet"
-          class="connect-btn"
-          :disabled="isConnecting"
-        >
-          {{ isConnecting ? "连接中..." : `连接到 ${selectedNetwork.name}` }}
+        <button @click="connectWallet" class="connect-btn" :disabled="isConnecting">
+          {{ isConnecting ? '连接中...' : `连接到 ${selectedNetwork.name}` }}
         </button>
       </div>
     </div>
@@ -69,9 +63,7 @@
         </div>
 
         <div class="action-buttons">
-          <button @click="disconnectWallet" class="disconnect-btn">
-            断开连接
-          </button>
+          <button @click="disconnectWallet" class="disconnect-btn">断开连接</button>
         </div>
       </div>
 
@@ -83,19 +75,8 @@
         <div class="feature-group">
           <h5>消息签名</h5>
           <div class="sign-form">
-            <input
-              v-model="messageToSign"
-              type="text"
-              placeholder="输入要签名的消息"
-              class="feature-input"
-            />
-            <button
-              @click="signMessage"
-              class="feature-btn"
-              :disabled="!messageToSign.trim()"
-            >
-              签名消息
-            </button>
+            <input v-model="messageToSign" type="text" placeholder="输入要签名的消息" class="feature-input" />
+            <button @click="signMessage" class="feature-btn" :disabled="!messageToSign.trim()">签名消息</button>
           </div>
           <div v-if="signatureResult" class="result-box">
             <strong>签名结果:</strong>
@@ -108,12 +89,7 @@
           <h5>TRX 转账</h5>
           <div class="transfer-form">
             <div class="input-group">
-              <input
-                v-model="transferTo"
-                type="text"
-                placeholder="接收地址"
-                class="feature-input"
-              />
+              <input v-model="transferTo" type="text" placeholder="接收地址" class="feature-input" />
             </div>
             <div class="input-group">
               <input
@@ -127,11 +103,7 @@
             <button
               @click="transferTRX"
               class="feature-btn transfer-btn"
-              :disabled="
-                !transferTo.trim() ||
-                !transferAmount ||
-                parseFloat(transferAmount) <= 0
-              "
+              :disabled="!transferTo.trim() || !transferAmount || parseFloat(transferAmount) <= 0"
             >
               发送转账
             </button>
@@ -145,18 +117,16 @@
     </div>
 
     <!-- 错误信息 -->
-    <div v-if="error" class="error-message">
-      <strong>错误:</strong> {{ error }}
-    </div>
+    <div v-if="error" class="error-message"><strong>错误:</strong> {{ error }}</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
-import { AppKit, createAppKit } from "@reown/appkit/vue";
-import { Ethers5Adapter } from "@reown/appkit-adapter-ethers5";
-import { defineChain } from "@reown/appkit/networks";
-import { ethers } from "ethers";
+import { ref, onMounted, onUnmounted } from 'vue'
+import { AppKit, createAppKit } from '@reown/appkit/vue'
+import { Ethers5Adapter } from '@reown/appkit-adapter-ethers5'
+import { defineChain } from '@reown/appkit/networks'
+import { ethers } from 'ethers'
 
 // export declare enum WalletConnectChainID {
 //   Mainnet = "tron:0x2b6653dc",
@@ -167,48 +137,48 @@ import { ethers } from "ethers";
 // Tron 主网配置 (使用 EVM 兼容方式)
 const tronMainnet = defineChain({
   id: 728126428, // Tron 主网的十进制 Chain ID
-  caipNetworkId: "eip155:728126428",
-  chainNamespace: "eip155",
-  name: "Tron Mainnet",
-  nativeCurrency: { name: "TRX", symbol: "TRX", decimals: 6 },
-  rpcUrls: { default: { http: ["https://api.trongrid.io"] } },
+  caipNetworkId: 'eip155:0x2b6653dc',
+  chainNamespace: 'eip155',
+  name: 'Tron Mainnet',
+  nativeCurrency: { name: 'TRX', symbol: 'TRX', decimals: 6 },
+  rpcUrls: { default: { http: ['https://api.trongrid.io'] } },
   blockExplorers: {
-    default: { name: "TronScan", url: "https://tronscan.org" },
+    default: { name: 'TronScan', url: 'https://tronscan.org' },
   },
   contracts: {},
-});
+})
 
 // 响应式数据
-const isConnected = ref(false);
-const isConnecting = ref(false);
-const address = ref("");
-const chainId = ref(null);
-const balance = ref("");
-const error = ref("");
-const selectedNetwork = ref(tronMainnet);
+const isConnected = ref(false)
+const isConnecting = ref(false)
+const address = ref('')
+const chainId = ref(null)
+const balance = ref('')
+const error = ref('')
+const selectedNetwork = ref(tronMainnet)
 
 // 只支持 Tron 主网 (移除了 tronNetworks 变量)
 
 // 功能测试相关
-const messageToSign = ref("Hello Tron!");
-const signatureResult = ref("");
-const transferTo = ref("");
-const transferAmount = ref("");
-const transferResult = ref("");
+const messageToSign = ref('Hello Tron!')
+const signatureResult = ref('')
+const transferTo = ref('')
+const transferAmount = ref('')
+const transferResult = ref('')
 
 // AppKit 实例
-let appKit: AppKit | null = null;
+let appKit: AppKit | null = null
 
 // 项目配置
-const projectId = "c34b3bde7397ea7ed6780e9ce1d5194d"; // 替换为您的项目ID
+const projectId = 'c34b3bde7397ea7ed6780e9ce1d5194d' // 替换为您的项目ID
 
 // 初始化 AppKit (只支持 Tron 主网)
 const initializeAppKit = async () => {
   try {
-    console.log("初始化 AppKit for Tron 主网");
+    console.log('初始化 AppKit for Tron 主网')
 
     // 创建 Ethers 适配器
-    const ethersAdapter = new Ethers5Adapter();
+    const ethersAdapter = new Ethers5Adapter()
 
     // 创建 AppKit 实例
     appKit = createAppKit({
@@ -216,10 +186,10 @@ const initializeAppKit = async () => {
       adapters: [ethersAdapter],
       networks: [tronMainnet], // 只使用 Tron 主网
       metadata: {
-        name: "Tron AppKit Demo",
-        description: "@reown/appkit Tron 连接示例",
+        name: 'Tron AppKit Demo',
+        description: '@reown/appkit Tron 连接示例',
         url: window.location.origin,
-        icons: [window.location.origin + "/favicon.ico"],
+        icons: [window.location.origin + '/favicon.ico'],
       },
       features: {
         analytics: true,
@@ -227,229 +197,222 @@ const initializeAppKit = async () => {
         socials: [],
         emailShowWallets: true,
       },
-      themeMode: "light",
+      themeMode: 'light',
       themeVariables: {
-        "--w3m-z-index": 9999,
-        "--w3m-accent": "#ff6b35", // Tron 橙色主题
+        '--w3m-z-index': 9999,
+        '--w3m-accent': '#ff6b35', // Tron 橙色主题
       },
       defaultNetwork: tronMainnet,
-    });
+    })
 
     // 监听连接状态变化
-    appKit.subscribeState((state) => {
-      console.log("AppKit 状态变化:", state);
+    appKit.subscribeState(state => {
+      console.log('AppKit 状态变化:', state)
 
       if (state.open !== undefined) {
         if (!state.open && !isConnected.value) {
-          isConnecting.value = false;
-          console.log("模态框关闭，重置连接状态");
+          isConnecting.value = false
+          console.log('模态框关闭，重置连接状态')
         }
       }
 
       if (state.selectedNetworkId !== undefined) {
-        chainId.value = state.selectedNetworkId;
-        console.log("网络变化:", state.selectedNetworkId);
+        chainId.value = state.selectedNetworkId
+        console.log('网络变化:', state.selectedNetworkId)
       }
-    });
+    })
 
     // 监听账户变化
-    appKit.subscribeAccount((account) => {
-      console.log("账户状态变化:", account);
+    appKit.subscribeAccount(account => {
+      console.log('账户状态变化:', account)
 
       if (account.isConnected) {
-        isConnected.value = true;
-        isConnecting.value = false;
-        address.value = account.address || "";
-        error.value = "";
+        isConnected.value = true
+        isConnecting.value = false
+        address.value = account.address || ''
+        error.value = ''
 
         // 获取余额
-        getBalance();
+        getBalance()
 
-        console.log("Tron 钱包已连接:", account.address);
+        console.log('Tron 钱包已连接:', account.address)
       } else {
-        isConnected.value = false;
-        isConnecting.value = false;
-        address.value = "";
-        chainId.value = null;
-        balance.value = "";
-        console.log("Tron 钱包已断开");
+        isConnected.value = false
+        isConnecting.value = false
+        address.value = ''
+        chainId.value = null
+        balance.value = ''
+        console.log('Tron 钱包已断开')
       }
-    });
+    })
 
-    console.log("Tron AppKit 初始化成功");
+    console.log('Tron AppKit 初始化成功')
   } catch (err) {
-    console.error("Tron AppKit 初始化失败:", err);
-    error.value = "初始化失败: " + err.message;
+    console.error('Tron AppKit 初始化失败:', err)
+    error.value = '初始化失败: ' + err.message
   }
-};
+}
 
 // 连接到 Tron 主网
 const connectToTron = () => {
-  console.log("连接到 Tron 主网");
-  selectedNetwork.value = tronMainnet;
+  console.log('连接到 Tron 主网')
+  selectedNetwork.value = tronMainnet
 
   // 初始化 AppKit
-  initializeAppKit();
-};
+  initializeAppKit()
+}
 
 const resetNetworkSelection = () => {
-  console.log("重置网络选择");
-  selectedNetwork.value = null;
+  console.log('重置网络选择')
+  selectedNetwork.value = null
 
   // 如果已连接，先断开
   if (isConnected.value && appKit) {
-    appKit.disconnect();
+    appKit.disconnect()
   }
-};
+}
 
 // 连接钱包
 const connectWallet = async () => {
   if (!appKit) {
-    error.value = "AppKit 未初始化";
-    return;
+    error.value = 'AppKit 未初始化'
+    return
   }
 
   try {
-    isConnecting.value = true;
-    error.value = "";
-    console.log("开始连接 Tron 钱包...");
+    isConnecting.value = true
+    error.value = ''
+    console.log('开始连接 Tron 钱包...')
 
     // 打开连接模态框
-    appKit.open();
+    appKit.open()
   } catch (err) {
-    console.error("连接 Tron 钱包失败:", err);
-    error.value = "连接失败: " + err.message;
-    isConnecting.value = false;
+    console.error('连接 Tron 钱包失败:', err)
+    error.value = '连接失败: ' + err.message
+    isConnecting.value = false
   }
-};
+}
 
 // 断开连接
 const disconnectWallet = async () => {
-  if (!appKit) return;
+  if (!appKit) return
 
   try {
-    await appKit.disconnect();
-    console.log("Tron 钱包已断开连接");
+    await appKit.disconnect()
+    console.log('Tron 钱包已断开连接')
   } catch (err) {
-    console.error("断开连接失败:", err);
-    error.value = "断开连接失败: " + err.message;
+    console.error('断开连接失败:', err)
+    error.value = '断开连接失败: ' + err.message
   }
-};
+}
 
 // 获取余额
 const getBalance = async () => {
-  if (!appKit || !address.value) return;
+  if (!appKit || !address.value) return
 
   try {
-    const provider = appKit.getWalletProvider() as any;
+    const provider = appKit.getWalletProvider() as any
     if (provider && provider.getBalance) {
-      const balanceWei = await provider.getBalance(address.value);
-      balance.value = ethers.utils.formatEther(balanceWei);
-      console.log("余额更新:", balance.value, "TRX");
+      const balanceWei = await provider.getBalance(address.value)
+      balance.value = ethers.utils.formatEther(balanceWei)
+      console.log('余额更新:', balance.value, 'TRX')
     }
   } catch (err) {
-    console.error("获取余额失败:", err);
-    balance.value = "获取失败";
+    console.error('获取余额失败:', err)
+    balance.value = '获取失败'
   }
-};
+}
 
 // 刷新余额
 const refreshBalance = () => {
-  getBalance();
-};
+  getBalance()
+}
 
 // 获取当前网络名称
 const getCurrentNetworkName = () => {
-  if (!chainId.value) return "未知";
+  if (!chainId.value) return '未知'
 
-  const chainIdStr = chainId.value.toString();
-  const chainIdHex =
-    typeof chainId.value === "number"
-      ? "0x" + chainId.value.toString(16)
-      : chainIdStr;
+  const chainIdStr = chainId.value.toString()
+  const chainIdHex = typeof chainId.value === 'number' ? '0x' + chainId.value.toString(16) : chainIdStr
 
   // Tron 网络映射
   const networkMap = {
-    "0x2b6653dc": "🔗 Tron Mainnet",
-    "728126428": "🔗 Tron Mainnet",
-    "0x94a9059e": "🧪 Tron Shasta Testnet",
-    "2494104990": "🧪 Tron Shasta Testnet",
-    "0xcd8690dc": "🧪 Tron Nile Testnet",
-    "3448148188": "🧪 Tron Nile Testnet",
-  };
+    '0x2b6653dc': '🔗 Tron Mainnet',
+    '728126428': '🔗 Tron Mainnet',
+    '0x94a9059e': '🧪 Tron Shasta Testnet',
+    '2494104990': '🧪 Tron Shasta Testnet',
+    '0xcd8690dc': '🧪 Tron Nile Testnet',
+    '3448148188': '🧪 Tron Nile Testnet',
+  }
 
-  return (
-    networkMap[chainIdHex] ||
-    networkMap[chainIdStr] ||
-    `未知网络 (${chainId.value})`
-  );
-};
+  return networkMap[chainIdHex] || networkMap[chainIdStr] || `未知网络 (${chainId.value})`
+}
 
 // 签名消息
 const signMessage = async () => {
-  if (!appKit || !messageToSign.value.trim()) return;
+  if (!appKit || !messageToSign.value.trim()) return
 
   try {
-    const provider = appKit.getWalletProvider() as any;
+    const provider = appKit.getWalletProvider() as any
     if (provider && provider.getSigner) {
-      const signer = provider.getSigner();
-      const signature = await signer.signMessage(messageToSign.value);
-      signatureResult.value = signature;
-      console.log("消息签名成功:", signature);
+      const signer = provider.getSigner()
+      const signature = await signer.signMessage(messageToSign.value)
+      signatureResult.value = signature
+      console.log('消息签名成功:', signature)
     } else {
-      throw new Error("无法获取签名器");
+      throw new Error('无法获取签名器')
     }
   } catch (err) {
-    console.error("签名失败:", err);
-    signatureResult.value = "签名失败: " + (err as Error).message;
+    console.error('签名失败:', err)
+    signatureResult.value = '签名失败: ' + (err as Error).message
   }
-};
+}
 
 // TRX 转账
 const transferTRX = async () => {
-  if (!appKit || !transferTo.value.trim() || !transferAmount.value) return;
+  if (!appKit || !transferTo.value.trim() || !transferAmount.value) return
 
   try {
-    const provider = appKit.getWalletProvider() as any;
+    const provider = appKit.getWalletProvider() as any
     if (provider && provider.getSigner) {
-      const signer = provider.getSigner();
+      const signer = provider.getSigner()
 
       const tx = {
         to: transferTo.value,
         value: ethers.utils.parseEther(transferAmount.value.toString()),
-      };
+      }
 
-      const transaction = await signer.sendTransaction(tx);
-      const receipt = await transaction.wait();
+      const transaction = await signer.sendTransaction(tx)
+      const receipt = await transaction.wait()
 
-      transferResult.value = `转账成功! 交易哈希: ${receipt.transactionHash}`;
-      console.log("TRX 转账成功:", receipt);
+      transferResult.value = `转账成功! 交易哈希: ${receipt.transactionHash}`
+      console.log('TRX 转账成功:', receipt)
 
       // 刷新余额
       setTimeout(() => {
-        getBalance();
-      }, 2000);
+        getBalance()
+      }, 2000)
     } else {
-      throw new Error("无法获取签名器");
+      throw new Error('无法获取签名器')
     }
   } catch (err) {
-    console.error("转账失败:", err);
-    transferResult.value = "转账失败: " + (err as Error).message;
+    console.error('转账失败:', err)
+    transferResult.value = '转账失败: ' + (err as Error).message
   }
-};
+}
 
 onMounted(() => {
-  console.log("Tron AppKit 组件已挂载");
+  console.log('Tron AppKit 组件已挂载')
   // 自动初始化 Tron 主网
-  initializeAppKit();
-});
+  initializeAppKit()
+})
 
 onUnmounted(() => {
   // 清理资源
   if (appKit) {
-    console.log("清理 Tron AppKit 资源");
+    console.log('清理 Tron AppKit 资源')
   }
-});
+})
 </script>
 
 <style scoped>
@@ -457,7 +420,7 @@ onUnmounted(() => {
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .tron-appkit-container h2 {

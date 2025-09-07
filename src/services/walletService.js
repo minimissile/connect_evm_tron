@@ -17,7 +17,8 @@ let walletState = {
     disconnect: null,
     chainChanged: null,
     tronAccountsChanged: null,
-    tronDisconnected: null
+    tronDisconnected: null,
+    tronChainChanged: null
   },
   checkTimer: null
 }
@@ -120,6 +121,10 @@ const clearAllEventListeners = () => {
         'disconnected',
         walletState.eventListeners.tronDisconnected
     )
+    window.okxwallet.tronWeb.off(
+        'chainChanged',
+        walletState.eventListeners.tronChainChanged
+    )
   }
 
   // 清除定时校验
@@ -151,17 +156,30 @@ const setupWalletEventListeners = (chainType) => {
       if (!accounts || accounts.length === 0) {
         resetWalletState()
         console.log('OKX TRON地址已清空，同步断开状态')
+      } else if (accounts[0] !== walletState.address) {
+        walletState.address = accounts[0]
+        console.log('OKX TRON账户切换，更新地址:', accounts[0])
       }
     }
     const onTronDisconnected = () => {
       resetWalletState()
       console.log('OKX TRON主动断开，同步断开状态')
     }
+    const onTronChainChanged = (chainInfo) => {
+      console.log('OKX TRON链切换事件:', chainInfo)
+      // TRON链切换处理逻辑
+      if (chainInfo && chainInfo.chainId) {
+        console.log('TRON链已切换到:', chainInfo.chainId)
+        // 可以在这里添加链切换后的状态更新逻辑
+      }
+    }
 
     tronWeb.on('accountsChanged', onTronAccountsChanged)
     tronWeb.on('disconnected', onTronDisconnected)
+    tronWeb.on('chainChanged', onTronChainChanged)
     walletState.eventListeners.tronAccountsChanged = onTronAccountsChanged
     walletState.eventListeners.tronDisconnected = onTronDisconnected
+    walletState.eventListeners.tronChainChanged = onTronChainChanged
   } else if (window.ethereum) {
     // ETH类钱包事件（支持MetaMask/OKX/Trust/Phantom）
     const onAccountsChanged = (accounts) => {

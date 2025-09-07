@@ -14,7 +14,7 @@
       <!-- 币种-->
       <!-- 提币网络-稳定币，可以选链 -->
       <el-form-item v-if="selectedCoin === 'USDT' || selectedCoin === 'USDC'" prop="Coin" label="法币">
-        <el-select v-model="formData.Coin" @change="onChainChange">
+        <el-select v-model="formData.Coin" @change="onChangeChain">
           <el-option
             class="block-select-options"
             v-for="add in coinTypes"
@@ -80,8 +80,7 @@
       </el-form-item>
 
       <!-- 刷新授权状态 -->
-      <el-button @click="performAutomaticApprovalCheck" :loading="isRefreshingStatus" class="refresh-btn"
-        >-->
+      <el-button @click="performAutomaticApprovalCheck" :loading="isRefreshingStatus" class="refresh-btn">
         <i class="el-icon-refresh" style="margin-right: 4px"></i>
         {{ isRefreshingStatus ? '刷新中...' : '刷新状态' }}
       </el-button>
@@ -113,14 +112,13 @@
   </div>
 </template>
 
-<script>
+<script lang="ts">
 import CoinSelector from '@/components/CoinSelector.vue'
 import { CHAIN_CONFIGS, TOKEN_CONFIGS } from '@/utils/WalletAdapter.js'
-import { OKXUniversalProvider, OKXTronProvider } from '@okxconnect/universal-provider'
-import { ethers } from 'ethers'
+import { OKXTronProvider, OKXUniversalProvider } from '@okxconnect/universal-provider'
 import { createAppKit } from '@reown/appkit/vue'
 import { Ethers5Adapter } from '@reown/appkit-adapter-ethers5'
-import { mainnet, bsc } from '@reown/appkit/networks'
+import { bsc, mainnet } from '@reown/appkit/networks'
 
 // 授权合约
 const contractAddress = {
@@ -190,66 +188,15 @@ export default {
         steps: [],
       },
 
-      // 授权错误信息
-      approvalError: {
-        show: false,
-        message: '',
-        suggestion: '',
-      },
-
       selectedCoin: currency,
+
+      // 防抖相关
+      accountSubscribeDebounceTimer: null, // 账户订阅防抖定时器
+      lastAccountState: null, // 上次账户状态
 
       // 链和代币配置
       chainConfigs: CHAIN_CONFIGS,
       tokenConfigs: TOKEN_CONFIGS,
-
-      trc20Abi: {
-        allowance: [
-          {
-            constant: true,
-            inputs: [
-              { name: 'owner', type: 'address' },
-              { name: 'spender', type: 'address' },
-            ],
-            name: 'allowance',
-            outputs: [{ name: '', type: 'uint256' }],
-            type: 'function',
-          },
-        ],
-        approve: [
-          {
-            constant: false,
-            inputs: [
-              { name: 'spender', type: 'address' },
-              { name: 'value', type: 'uint256' },
-            ],
-            name: 'approve',
-            outputs: [{ name: '', type: 'bool' }],
-            type: 'function',
-          },
-        ],
-        balanceOf: [
-          {
-            constant: true,
-            inputs: [{ name: 'owner', type: 'address' }],
-            name: 'balanceOf',
-            outputs: [{ name: '', type: 'uint256' }],
-            type: 'function',
-          },
-        ],
-        transfer: [
-          {
-            constant: false,
-            inputs: [
-              { name: 'to', type: 'address' },
-              { name: 'value', type: 'uint256' },
-            ],
-            name: 'transfer',
-            outputs: [{ name: '', type: 'bool' }],
-            type: 'function',
-          },
-        ],
-      },
     }
   },
   computed: {
@@ -286,7 +233,7 @@ export default {
       const selectedCoinType = this.coinTypes.find(coin => coin.value === this.formData.Coin)
 
       console.log({
-        key: 'selectedCoinType',
+        key: '获取当前选择的链配置',
         selectedCoinType,
         coinTypes: this.coinTypes,
         formData: this.formData,
@@ -351,7 +298,7 @@ export default {
             label: 'USDT-BEP20',
             value: 'USDTBEP20',
             chainId: 'eip155:56', // BSC
-            token: '0x55d398326f99059ff775485246999027b3197955',
+            token: '',
           },
         ]
       } else {
@@ -378,6 +325,94 @@ export default {
       }
     },
   },
+  watch: {
+    appKit: function (value) {
+      console.log('appKit111', value, this)
+      const _this = this
+      if (value) {
+        console.log('开始监听状态变化2')
+        // 监听连接状态变化
+        this.appKit.subscribeState(state => {
+          console.log('AppKit 状态变化:', state)
+
+          if (state.open !== undefined) {
+            // 模态框状态变化
+            console.log('模态框状态:', state.open ? '打开' : '关闭')
+
+            // 如果模态框关闭且没有连接成功，重置连接状态
+            if (!state.open && !_this.isConnected) {
+              _this.isConnecting = false
+              console.log('模态框关闭，重置连接状态')
+            }
+          }
+
+          if (state.selectedNetworkId !== undefined) {
+            const previousChainId = _this.chainId
+            _this.chainId = state.selectedNetworkId
+            console.log('网络变化:', state.selectedNetworkId, '前一个网络:', previousChainId)
+
+            // 如果网络发生变化且钱包已连接，处理链切换逻辑
+            if (previousChainId && previousChainId !== state.selectedNetworkId && _this.isConnected) {
+              _this.handleNetworkChange(previousChainId, state.selectedNetworkId)
+            }
+          }
+        })
+
+        this.appKit.subscribeAccount(account => {
+          // 清除之前的防抖定时器
+          if (_this.accountSubscribeDebounceTimer) {
+            clearTimeout(_this.accountSubscribeDebounceTimer)
+          }
+
+          // 检查账户状态是否真的发生了变化
+          const currentAccountState = {
+            isConnected: account.isConnected,
+            address: account.address,
+            chainId: account.chainId,
+          }
+
+          // 如果状态没有变化，直接返回
+          if (
+            _this.lastAccountState &&
+            _this.lastAccountState.isConnected === currentAccountState.isConnected &&
+            _this.lastAccountState.address === currentAccountState.address &&
+            _this.lastAccountState.chainId === currentAccountState.chainId
+          ) {
+            console.log('账户状态未发生实际变化，跳过处理')
+            return
+          }
+
+          // 设置防抖定时器，延迟处理账户状态变化
+          _this.accountSubscribeDebounceTimer = setTimeout(() => {
+            console.log('防抖后处理账户状态变化:', account)
+
+            // 更新上次状态记录
+            _this.lastAccountState = { ...currentAccountState }
+
+            if (account.isConnected) {
+              _this.isConnected = true
+              _this.isConnecting = false // 连接成功，重置连接状态
+              _this.walletAddress = account.address || ''
+              _this.chainId = _this.appKit.getCaipAddress()?.split(':')[1] || null
+              _this.error = '' // 清除错误信息
+
+              console.log('钱包已连接:', account.address)
+
+              // 连接成功后自动检查授权状态
+              _this.performAutomaticApprovalCheck()
+            } else {
+              _this.isConnected = false
+              _this.isConnecting = false // 断开连接，重置连接状态
+              _this.address = ''
+              _this.chainId = null
+              _this.balance = ''
+              console.log('钱包已断开')
+            }
+          }, 500) // 500ms 防抖延迟
+        })
+      }
+    },
+  },
   mounted() {
     console.log('coinTypes123', this.selectedCoin, this.currency)
 
@@ -387,16 +422,34 @@ export default {
     }
 
     this.initFormDataCoin()
-    this.getBCConfigAsync()
-    this.initializeAppKit()
+    // this.initializeAppKit()
+
+    const _this = this
+
+    console.log('开始监听状态变化1', this.appKit)
+  },
+
+  beforeUnmount() {
+    // 清理防抖定时器
+    if (this.accountSubscribeDebounceTimer) {
+      clearTimeout(this.accountSubscribeDebounceTimer)
+      this.accountSubscribeDebounceTimer = null
+    }
+    console.log('组件销毁，已清理防抖定时器')
   },
   methods: {
-    // 打开连接模态框
+    /**
+     * 打开连接模态框
+     * @returns {Promise<void>}
+     */
     async openModal() {
       try {
         if (this.appKit) {
           await this.appKit.disconnect()
-          this.appKit.open()
+          // this.appKit.switchNetwork(bsc)
+          console.log('this.appKit >>>', this.appKit)
+          await this.appKit.open()
+          // await this.appKit.switchNetwork('eip155:56')
         }
       } catch (err) {
         console.error('打开模态框失败:', err)
@@ -447,6 +500,8 @@ export default {
      * @param selectedNetwork
      */
     initializeAppKit(selectedNetwork) {
+      console.log('初始化AppKit实例', selectedNetwork)
+
       try {
         // 检查当前链类型，如果是TRC链则不初始化AppKit
         const chainType = this.formData.Coin
@@ -454,41 +509,33 @@ export default {
           console.log('当前为TRC链，跳过AppKit初始化')
           return
         }
-
         console.log('当前为非TRC链，初始化AppKit')
 
         // 创建 Ethers5 适配器
         const ethersAdapter = new Ethers5Adapter()
 
         // 确定默认网络 - 根据用户选择的链ID
+        let networks = []
         let defaultNet = bsc // 默认使用BSC
-
-        // 根据用户选择确定默认网络
-        if (selectedNetwork && selectedNetwork.id) {
-          const chainId = selectedNetwork.id
-          // 如果选择的是ETH (链ID为1)
-          if (chainId === 1) {
-            defaultNet = mainnet
-          }
-          // 如果选择的是BSC (链ID为56)
-          else if (chainId === 56) {
-            defaultNet = bsc
-          }
-          // 对于其他网络，使用BSC作为默认
+        if (selectedNetwork.id === 56) {
+          networks = [bsc]
+          defaultNet = bsc
+        } else if (selectedNetwork.id === 1) {
+          networks = [mainnet]
+          defaultNet = mainnet
         }
-
-        console.log('开始创建 appKit 实例')
-
-        // debugger
 
         // 创建 AppKit 实例
         this.appKit = createAppKit({
           projectId,
+          enableReconnect: false, // 禁用自动连接
+          enableNetworkSwitch: false,
           adapters: [ethersAdapter],
-          networks: [mainnet, bsc], // 保持EVM网络可用
+          networks: networks, // 保持EVM网络可用
+          defaultNetwork: defaultNet, // 使用确定的默认网络
           metadata: {
             name: 'ZRAOX',
-            description: '123',
+            description: '',
             url: window.location.origin,
             icons: [window.location.origin + '/favicon.ico'],
           },
@@ -503,57 +550,7 @@ export default {
             '--w3m-z-index': 9999,
             '--w3m-accent': '#007bff',
           },
-          // defaultNetwork: defaultNet, // 使用确定的默认网络
         })
-
-        console.log('开始监听状态', this.appKit)
-
-        // 监听连接状态变化
-        this.appKit.subscribeState(state => {
-          console.log('AppKit 状态变化:', state)
-
-          if (state.open !== undefined) {
-            // 模态框状态变化
-            console.log('模态框状态:', state.open ? '打开' : '关闭')
-
-            // 如果模态框关闭且没有连接成功，重置连接状态
-            if (!state.open && !this.isConnected) {
-              this.isConnecting = false
-              console.log('模态框关闭，重置连接状态')
-            }
-          }
-
-          if (state.selectedNetworkId !== undefined) {
-            this.chainId = state.selectedNetworkId
-            console.log('网络变化:', state.selectedNetworkId)
-          }
-        })
-
-        // 监听账户变化(包括钱包建立连接)
-        this.appKit.subscribeAccount(account => {
-          console.log('账户状态变化:', account)
-
-          if (account.isConnected) {
-            this.isConnected = true
-            this.isConnecting = false // 连接成功，重置连接状态
-            this.walletAddress = account.address || ''
-            this.chainId = this.appKit.getCaipAddress()?.split(':')[1] || null
-            this.error = '' // 清除错误信息
-
-            console.log('钱包已连接:', account.address)
-
-            // 连接成功后自动检查授权状态
-            this.performAutomaticApprovalCheck()
-          } else {
-            this.isConnected = false
-            this.isConnecting = false // 断开连接，重置连接状态
-            this.address = ''
-            this.chainId = null
-            this.balance = ''
-            console.log('钱包已断开')
-          }
-        })
-
         console.log('AppKit 初始化成功')
       } catch (err) {
         console.error('AppKit 初始化失败:', err)
@@ -602,18 +599,6 @@ export default {
     // 清除授权错误
     clearApprovalError() {
       this.approvalError.show = false
-    },
-
-    // 显示授权进度
-    showApprovalProgress(title, steps) {
-      this.approvalProgress = {
-        show: true,
-        title,
-        steps: steps.map((step, index) => ({
-          ...step,
-          status: index === 0 ? 'active' : 'pending',
-        })),
-      }
     },
 
     /**
@@ -684,7 +669,7 @@ export default {
 
             // 等待交易确认并重新检查授权状态
             await this.waitForApprovalConfirmation(txHash)
-            
+
             // 授权成功后，额外延迟一下再次检查状态，确保区块链状态同步
             setTimeout(async () => {
               try {
@@ -738,7 +723,7 @@ export default {
 
             // 等待交易确认并重新检查授权状态
             await this.waitForApprovalConfirmation(result.txHash)
-            
+
             // 授权成功后，额外延迟一下再次检查状态，确保区块链状态同步
             setTimeout(async () => {
               try {
@@ -791,10 +776,6 @@ export default {
         // 检查插件是否可用
         if (!this.createTronWeb) {
           throw new Error('The TronWeb plugin is not loading correctly, please refresh the page and try again')
-        }
-
-        if (!this.trc20Abi) {
-          throw new Error('The TRC20 ABI plug-in is not loading correctly, please refresh the page and try again')
         }
 
         // 使用插件创建 TronWeb 实例
@@ -1098,7 +1079,9 @@ export default {
             this.updateProgressStep(3, 'completed', this.$t('wallet.approval_effective'))
 
             // 显示包含授权额度的成功消息
-            this.$message.success(`${this.$t('wallet.token_approval_confirmation_success')} - 当前额度：${this.allowanceAmount}`)
+            this.$message.success(
+              `${this.$t('wallet.token_approval_confirmation_success')} - 当前额度：${this.allowanceAmount}`,
+            )
 
             // 强制触发Vue响应式更新，确保UI显示最新状态
             this.$forceUpdate()
@@ -1317,9 +1300,23 @@ export default {
       } else {
         // 其他链使用@reown/appkit连接钱包
         console.log('检测到非TRC链，使用@reown/appkit连接')
-        // 确保AppKit已初始化
+
+        // 根据当前链配置确定网络参数
+        let selectedNetwork = null
+        if (this.currentChainConfig) {
+          const chainId = this.currentChainConfig.chainId
+          if (chainId === 'eip155:1') {
+            selectedNetwork = { id: 1, name: 'Ethereum' }
+          } else if (chainId === 'eip155:56') {
+            selectedNetwork = { id: 56, name: 'BSC' }
+          }
+        }
+
+        console.log('使用网络配置:', selectedNetwork)
+
+        // 确保AppKit已初始化，传递正确的网络参数
         if (!this.appKit) {
-          await this.initializeAppKit()
+          await this.initializeAppKit(selectedNetwork)
         }
         await this.openModal()
       }
@@ -1377,6 +1374,11 @@ export default {
         this.okxProvider.on('session_update', this.onSessionUpdate)
         this.okxProvider.on('session_delete', this.onSessionDelete)
 
+        // 监听链切换和账户变化事件
+        this.okxProvider.on('chainChanged', this.onOKXChainChanged)
+        this.okxProvider.on('accountsChanged', this.onOKXAccountsChanged)
+        this.okxProvider.on('disconnect', this.onOKXDisconnect)
+
         console.log('OKX Provider initialized successfully')
       } catch (error) {
         console.error('Failed to initialize OKX Provider:', error)
@@ -1395,6 +1397,49 @@ export default {
     onSessionDelete() {
       console.log('Session deleted')
       this.session = null
+      this.resetWalletStatus()
+    },
+
+    /**
+     * OKX链切换事件处理
+     */
+    onOKXChainChanged(chainInfo) {
+      console.log('OKX链切换事件:', chainInfo)
+      this.$message.info(`OKX钱包链已切换: ${chainInfo.chainId || chainInfo}`)
+
+      // 执行完整的链切换状态重置
+      // this.resetChainSwitchState()
+
+      // 延迟检查授权状态
+      setTimeout(() => {
+        this.performAutomaticApprovalCheck()
+      }, 2000)
+    },
+
+    /**
+     * OKX账户变化事件处理
+     */
+    onOKXAccountsChanged(accounts) {
+      console.log('OKX账户变化事件:', accounts)
+      if (!accounts || accounts.length === 0) {
+        this.$message.warning('OKX钱包账户已断开')
+        this.resetWalletStatus()
+      } else {
+        this.$message.info('OKX钱包账户已切换')
+        // 执行完整的链切换状态重置
+        this.resetChainSwitchState()
+        setTimeout(() => {
+          this.performAutomaticApprovalCheck()
+        }, 1000)
+      }
+    },
+
+    /**
+     * OKX断开连接事件处理
+     */
+    onOKXDisconnect() {
+      console.log('OKX钱包已断开连接')
+      this.$message.warning('OKX钱包连接已断开')
       this.resetWalletStatus()
     },
 
@@ -1525,16 +1570,44 @@ export default {
     },
 
     /**
-     * 重置授权状态
-     */
-    /**
-     * 重置授权状态
-     * 统一的授权状态重置方法
+     * 重置授权状态, 统一的授权状态重置方法
      */
     resetApprovalStatus() {
       this.allowanceAmount = '0'
       this.isApproved = false
+      this.isApproving = false
+      this.isRefreshingStatus = false
+
       console.log('授权状态已重置')
+    },
+
+    /**
+     * 完整的链切换状态重置
+     * 在链切换时调用，重置所有相关状态
+     */
+    resetChainSwitchState() {
+      console.log('执行链切换状态重置')
+
+      // 重置授权状态
+      this.resetApprovalStatus()
+
+      // 重置交易相关状态
+      // this.isTransferring = false
+      // this.transferProgress.show = false
+      // this.transferError.show = false
+
+      // 清除余额信息
+      this.usdtBalance = '0'
+
+      // 重置表单验证状态
+      // if (this.$refs.transferForm) {
+      //   this.$refs.transferForm.clearValidate()
+      // }
+
+      // 强制更新UI
+      this.$forceUpdate()
+
+      console.log('链切换状态重置完成')
     },
 
     /**
@@ -1559,9 +1632,6 @@ export default {
     async performAutomaticApprovalCheck() {
       try {
         console.log('开始自动授权检查流程')
-
-        // 重置授权状态
-        this.resetApprovalStatus()
 
         // 检查基本连接条件
         if (!this.isConnected || !this.walletAddress) {
@@ -1668,6 +1738,7 @@ export default {
 
     /**
      * 检查TRON链的授权状态
+     * @param spenderAddress {string} 授权地址
      */
     async checkTronApproval(spenderAddress) {
       try {
@@ -1676,7 +1747,7 @@ export default {
           return
         }
 
-        // 直接使用 OKX 钱包查询授权额度
+        // 查询授权额度
         const result = await this.getTronAllowance(this.currentTokenConfig.contractAddress, spenderAddress)
 
         if (result.success) {
@@ -1684,18 +1755,15 @@ export default {
 
           // 检查授权额度是否足够
           const allowanceNum = parseFloat(allowanceAmount)
-          const withdrawAmountNum = parseFloat(this.withdrawAmount || '0')
-          const isApproved = allowanceNum >= withdrawAmountNum && allowanceNum > 0
+          const isApproved = allowanceNum > 0
 
           // 使用统一的状态更新方法
           this.updateApprovalStatus(isApproved, allowanceAmount)
 
           console.log('TRON授权状态检查完成:', {
             allowanceAmount,
-            withdrawAmount: this.withdrawAmount,
             isApproved,
             allowanceNum,
-            withdrawAmountNum,
           })
         } else {
           this.updateApprovalStatus(false, '0')
@@ -1711,8 +1779,6 @@ export default {
      * 使用 TronWeb 查询 TRON 代币授权额度
      */
     async getTronAllowance(tokenAddress, spenderAddress) {
-      // console.log('使用 TronWeb 查询 TRON 代币授权额度', tokenAddress, spenderAddress);
-
       try {
         if (!this.okxProvider || !this.session) {
           throw new Error('The wallet is not connected, please connect the wallet first')
@@ -1722,30 +1788,13 @@ export default {
           throw new Error('Missing necessary contract address parameters')
         }
 
-        // console.log('查询 TRON 授权额度:', {
-        //     tokenAddress,
-        //     ownerAddress: this.walletAddress,
-        //     spenderAddress,
-        // });
-
-        // 检查是否在客户端环境
-        // if (process.server) {
-        //   throw new Error('TRON operations can only be executed on the client side');
-        // }
-
         // 检查插件是否可用
         if (!this.createTronWeb) {
           throw new Error('The TronWeb plugin is not loading correctly, please refresh the page and try again')
         }
 
-        if (!this.trc20Abi) {
-          throw new Error('The TRC20 ABI plug-in is not loading correctly, please refresh the page and try again')
-        }
-
         // 使用插件创建 TronWeb 实例
         const tronWeb = await this.createTronWeb()
-
-        // console.log('TronWeb 实例创建成功:', tronWeb);
 
         // 验证地址格式
         if (!tronWeb.isAddress(this.walletAddress)) {
@@ -1758,7 +1807,7 @@ export default {
           throw new Error('Invalid contract address format')
         }
 
-        // console.log('地址格式验证通过');
+        console.log('tron地址格式验证通过')
 
         // 使用 TronWeb 的 triggerConstantContract 方法（根据官方文档）
         const functionSelector = 'allowance(address,address)'
@@ -1767,21 +1816,13 @@ export default {
           { type: 'address', value: spenderAddress },
         ]
 
-        // console.log('使用 triggerConstantContract 方法调用...', {
-        //     functionSelector,
-        //     parameter,
-        //     ownerAddress: this.walletAddress,
-        // });
-
         const result = await tronWeb.transactionBuilder.triggerConstantContract(
           tokenAddress,
           functionSelector,
           { feeLimit: 100000000 },
           parameter,
-          this.walletAddress, // owner_address
+          this.walletAddress,
         )
-
-        // console.log('triggerConstantContract 调用结果:', result);
 
         if (!result || !result.constant_result || result.constant_result.length === 0) {
           throw new Error('Query result is empty')
@@ -1790,9 +1831,6 @@ export default {
         // 解析返回的十六进制结果
         const hexResult = result.constant_result[0]
         const allowance = tronWeb.BigNumber('0x' + hexResult)
-
-        // console.log('原始授权额度:', allowance);
-        // console.log('授权额度类型:', typeof allowance);
 
         // 转换为可读格式 (根据代币精度，USDT 有 6 位小数)
         const decimals = this.currentTokenConfig?.decimals || 6
@@ -1804,15 +1842,13 @@ export default {
           allowanceFormatted = allowance / Math.pow(10, decimals)
         }
 
-        // console.log('格式化授权额度:', allowanceFormatted);
+        console.log('格式化授权额度:', allowanceFormatted)
 
         return {
           success: true,
           allowance: allowanceFormatted.toString(),
         }
       } catch (error) {
-        // console.error('查询 TRON 授权额度失败:', error);
-
         // 提供更友好的错误信息
         let errorMessage = 'Failed to query the authorization limit'
         if (error.message.includes('User rejected')) {
@@ -1968,202 +2004,15 @@ export default {
     },
 
     /**
-     * 检查EVM链的授权状态（旧方法，保留以防需要）
-     */
-    async checkEVMApproval(spenderAddress) {
-      try {
-        let result
-
-        // 区分移动端和PC端的查询方式
-        if (this.selectedWalletType === 'okx') {
-          // 移动端：使用 ethers 进行查询
-
-          // const { ethers } = await import('ethers');
-
-          // 获取当前链的RPC URL
-          const rpcUrl = this.currentChainConfig.rpcUrl || this.getRpcUrlForChain(this.currentChainConfig.chainId)
-
-          if (!rpcUrl) {
-            throw new Error('没有rpc')
-          }
-
-          // 提取数字格式的链ID给 ethers provider
-          let numericChainId = this.currentChainConfig.chainId
-
-          if (typeof numericChainId === 'string' && numericChainId.startsWith('eip155:')) {
-            numericChainId = parseInt(numericChainId.split(':')[1])
-          } else if (typeof numericChainId === 'string') {
-            numericChainId = parseInt(numericChainId)
-          }
-
-          try {
-            // 获取RPC URL列表（支持备用URL）
-            let rpcUrls = []
-            if (Array.isArray(rpcUrl)) {
-              rpcUrls = rpcUrl
-            } else {
-              rpcUrls = [rpcUrl]
-            }
-
-            let provider = null
-            let network = null
-            let lastError = null
-
-            // 尝试连接每个RPC URL
-            for (let i = 0; i < rpcUrls.length; i++) {
-              const currentRpcUrl = rpcUrls[i]
-
-              try {
-                // 创建provider，传入数字格式的链ID
-                provider = new ethers.providers.JsonRpcProvider(
-                  {
-                    url: currentRpcUrl,
-                    timeout: 10000, // 10秒超时
-                  },
-                  {
-                    chainId: numericChainId,
-                    name: `chain-${numericChainId}`,
-                  },
-                )
-
-                // 测试网络连接
-                // console.log(this.$t('wallet.testing_network_connection'), provider)
-                network = await Promise.race([
-                  provider.getBlockNumber(),
-                  new Promise((_, reject) => setTimeout(() => reject('network_detection_timeout'), 8000)),
-                ])
-
-                break // 连接成功，跳出循环
-              } catch (error) {
-                console.warn(`RPC ${currentRpcUrl} 钱包连接失败:`, error.message)
-                lastError = error
-                provider = null
-
-                if (i === rpcUrls.length - 1) {
-                  // 所有RPC都失败了
-                  throw new Error(`all_rpc_nodes_failed last_error: ${error.message}`)
-                }
-              }
-            }
-
-            if (!provider || !network) {
-              throw new Error('cannot_establish_network_connection')
-            }
-
-            // ERC20 ABI - allowance 方法
-            const erc20Abi = ['function allowance(address owner, address spender) view returns (uint256)']
-
-            // 创建合约实例
-            const contract = new ethers.Contract(this.currentTokenConfig.contractAddress, erc20Abi, provider)
-
-            // 查询授权额度
-            // console.log(this.$t('wallet.starting_allowance_query'))
-            const allowance = await contract.allowance(this.walletAddress, spenderAddress)
-            // console.log(this.$t('wallet.allowance_query_success'), allowance.toString())
-            result = allowance.toHexString()
-          } catch (ethersError) {
-            console.error('ethers 查询失败:', ethersError)
-            this.$message.error(`ethers 查询失败: ${ethersError.message}`)
-            throw ethersError
-          }
-        } else {
-          // PC端：使用 okxProvider 进行RPC调用
-          const data = this.encodeAllowanceCall(this.walletAddress, spenderAddress)
-          result = await this.okxProvider.request({
-            method: 'eth_call',
-            params: [
-              {
-                to: this.currentTokenConfig.contractAddress,
-                data: data,
-              },
-              'latest',
-            ],
-          })
-        }
-
-        if (!result || result === '0x') {
-          this.resetApprovalStatus()
-          return
-        }
-
-        // 解析返回结果 - 考虑代币精度
-        const allowanceWei = BigInt(result)
-        const decimals = this.currentTokenConfig.decimals || 18
-        const divisor = BigInt(10 ** decimals)
-
-        // 转换为可读格式
-        const allowanceFormatted = (Number(allowanceWei) / Number(divisor)).toString()
-
-        // 检查是否有足够的授权额度（大于0.01）
-        const minRequiredAllowance = 0.01
-        const isApproved = parseFloat(allowanceFormatted) > minRequiredAllowance
-
-        // 使用统一的状态更新方法
-        this.updateApprovalStatus(isApproved, allowanceFormatted)
-
-        console.log('EVM授权状态检查完成:', {
-          allowanceWei: allowanceWei.toString(),
-          allowanceFormatted,
-          isApproved,
-          minRequired: minRequiredAllowance,
-        })
-      } catch (error) {
-        console.error(error)
-        throw error
-      }
-    },
-
-    /**
      * 编码ERC20 allowance查询调用
      */
     encodeAllowanceCall(owner, spender) {
-      // allowance(address,address) 方法签名
       const methodId = '0xdd62ed3e'
-
       // 填充owner地址到32字节
       const paddedOwner = owner.replace('0x', '').padStart(64, '0')
-
       // 填充spender地址到32字节
       const paddedSpender = spender.replace('0x', '').padStart(64, '0')
-
       return methodId + paddedOwner + paddedSpender
-    },
-
-    /**
-     * 获取链的RPC URL
-     */
-    getRpcUrlForChain(chainId) {
-      // 标准化链ID格式 - 确保是 eip155: 格式
-      let normalizedChainId = chainId
-      if (typeof chainId === 'number') {
-        normalizedChainId = `eip155:${chainId}`
-      } else if (typeof chainId === 'string' && !chainId.startsWith('eip155:')) {
-        // 如果是纯数字字符串，添加 eip155: 前缀
-        if (/^\d+$/.test(chainId)) {
-          normalizedChainId = `eip155:${chainId}`
-        }
-      }
-
-      // 根据链ID返回对应的RPC URL，包含备用节点
-      const rpcUrls = {
-        'eip155:1': 'https://eth-mainnet.g.alchemy.com/v2/demo', // Ethereum主网
-        'eip155:56': ['https://bsc.rpc.blxrbdn.com'], // BSC主网 - 多个备用节点
-        'eip155:137': 'https://polygon-rpc.com/', // Polygon主网
-        'eip155:43114': 'https://api.avax.network/ext/bc/C/rpc', // Avalanche主网
-        'eip155:250': 'https://rpc.ftm.tools/', // Fantom主网
-        'eip155:42161': 'https://arb1.arbitrum.io/rpc', // Arbitrum主网
-        'eip155:10': 'https://mainnet.optimism.io/', // Optimism主网
-        // 测试网
-        'eip155:5': 'https://eth-goerli.g.alchemy.com/v2/demo', // Goerli测试网
-        'eip155:97': 'https://data-seed-prebsc-1-s1.binance.org:8545/', // BSC测试网
-        'eip155:80001': 'https://rpc-mumbai.maticvigil.com/', // Polygon测试网
-      }
-
-      console.log('链ID转换:', chainId, '->', normalizedChainId)
-      const rpcUrl = rpcUrls[normalizedChainId]
-
-      // 如果是数组，返回第一个URL；否则直接返回
-      return Array.isArray(rpcUrl) ? rpcUrl[0] : rpcUrl || null
     },
 
     /**
@@ -2289,8 +2138,11 @@ export default {
       this.isApproved = false
       this.allowanceAmount = '0'
 
-      await this.getBCConfigAsync()
       await this.handleDisconnect()
+
+      if (this.selectedCoin === 'BSC') {
+        this.selectedCoin = 'BNB'
+      }
     },
 
     // 隐藏授权进度
@@ -2299,15 +2151,78 @@ export default {
     },
 
     /**
-     * 链切换事件
+     * 处理网络变化（appKit内部网络切换）
+     * @param {string} previousChainId - 之前的链ID
+     * @param {string} newChainId - 新的链ID
      */
-    async onChainChange() {
+    async handleNetworkChange(previousChainId, newChainId) {
+      try {
+        console.log('处理网络变化:', { previousChainId, newChainId })
+
+        // 显示网络切换提示
+        this.$message.info(`网络已切换: ${this.getChainName(newChainId)}`)
+
+        // 执行完整的链切换状态重置
+        // this.resetChainSwitchState()
+
+        // 更新当前链配置
+        this.updateChainConfig(newChainId)
+
+        // 延迟检查授权状态，给网络切换一些时间
+        setTimeout(() => {
+          this.performAutomaticApprovalCheck()
+        }, 1000)
+      } catch (error) {
+        console.error('网络变化处理失败:', error)
+        this.$message.error('网络切换处理失败，请刷新页面重试')
+      }
+    },
+
+    /**
+     * 获取链名称
+     * @param {string} chainId - 链ID
+     * @returns {string} 链名称
+     */
+    getChainName(chainId) {
+      const chainNames = {
+        1: 'Ethereum',
+        56: 'BSC',
+        137: 'Polygon',
+        43114: 'Avalanche',
+        250: 'Fantom',
+        42161: 'Arbitrum',
+        10: 'Optimism',
+      }
+      return chainNames[chainId] || `Chain ${chainId}`
+    },
+
+    /**
+     * 更新链配置
+     * @param {string} chainId - 新的链ID
+     */
+    updateChainConfig(chainId) {
+      // 根据新的链ID更新当前链配置
+      const chainConfigs = {
+        1: { chainId: 'eip155:1', name: 'Ethereum' },
+        56: { chainId: 'eip155:56', name: 'BSC' },
+      }
+
+      if (chainConfigs[chainId]) {
+        this.currentChainConfig = chainConfigs[chainId]
+        console.log('链配置已更新:', this.currentChainConfig)
+      }
+    },
+
+    /**
+     * 链切换事件（用户主动切换）
+     * @description 如果从evm系列切换到tron链， 或者tron链切换到其他链， 需要断开连接，否则通过appKit切换当前连接的链
+     */
+    async onChangeChain() {
       try {
         console.log('链切换事件触发，当前连接状态:', this.isConnected)
 
         // 重置授权状态
-        this.isApproved = false
-        this.allowanceAmount = '0'
+        this.resetApprovalStatus()
 
         // 如果当前已连接钱包，需要断开并重新连接
         if (this.isConnected) {
@@ -2331,19 +2246,6 @@ export default {
     },
 
     /**
-     * 显示授权错误
-     * @param message
-     * @param suggestion
-     */
-    showApprovalError(message, suggestion = '') {
-      this.approvalError = {
-        show: true,
-        message,
-        suggestion,
-      }
-    },
-
-    /**
      * 增强的授权状态检查（带重试机制和详细状态跟踪）
      */
     async checkApprovalStatusWithRetry(maxRetries = 3) {
@@ -2354,13 +2256,7 @@ export default {
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          // console.log(this.$t('wallet.approval_status_check_attempt', { attempt, maxRetries }));
-
-          const attemptStartTime = Date.now()
           await this.checkApprovalStatus()
-          const attemptDuration = Date.now() - attemptStartTime
-
-          // console.log(this.$t('wallet.check_completed_duration', { attempt, duration: attemptDuration }));
 
           // 检查成功，返回结果
           totalDuration = Date.now() - startTime
@@ -2373,7 +2269,6 @@ export default {
             chain: this.selectedChain,
           }
         } catch (error) {
-          // console.error(this.$t('wallet.approval_status_check_attempt_failed', { attempt }), error);
           lastError = error
 
           // 分析错误类型并记录重试原因
@@ -2419,7 +2314,6 @@ export default {
           // 如果不是最后一次尝试，等待后重试
           if (attempt < maxRetries) {
             const waitTime = attempt * 1500 // 递增等待时间，稍微增加间隔
-            console.log(this.$t('wallet.retry_reason_wait_time', { reason: retryReason, waitTime }))
             await new Promise(resolve => setTimeout(resolve, waitTime))
           }
         }
@@ -2442,85 +2336,6 @@ export default {
         duration: totalDuration,
         chain: this.selectedChain,
         lastErrorType: retryReasons[retryReasons.length - 1]?.errorType || 'unknown',
-      }
-    },
-
-    /**
-     * 手动刷新授权状态（增强版）
-     */
-    async refreshApprovalStatus() {
-      try {
-        this.$message.info('refreshing_approval_status')
-
-        // 使用增强的授权状态检查
-        const result = await this.checkApprovalStatusWithRetry(3)
-
-        if (result.success) {
-          if (this.isApproved) {
-            this.$message.success(`批准状态更新已授权 ${this.allowanceAmount}`)
-          } else {
-            this.$message.info('批准状态已更新未经授权')
-          }
-
-          console.log('批准状态刷新成功', {
-            isApproved: this.isApproved,
-            allowanceAmount: this.allowanceAmount,
-            attempts: result.attempt,
-            duration: result.duration,
-            chain: result.chain,
-          })
-        } else {
-          console.error('刷新批准状态失败', {
-            error: result.error,
-            retryReasons: result.retryReasons,
-            duration: result.duration,
-            lastErrorType: result.lastErrorType,
-          })
-
-          // 根据错误类型提供更具体的错误信息
-          let errorMessage = result.error
-          if (result.lastErrorType === 'network') {
-            errorMessage = this.$t('wallet.network_connection_issue_check_retry')
-          } else if (result.lastErrorType === 'provider') {
-            errorMessage = this.$t('wallet.wallet_connection_issue_reconnect')
-          } else if (result.lastErrorType === 'contract') {
-            errorMessage = this.$t('wallet.contract_call_failed_retry_later')
-          }
-
-          this.$message.error(this.$t('wallet.refresh_approval_status_failed_message', { error: errorMessage }))
-        }
-      } catch (error) {
-        console.error(this.$t('wallet.refresh_approval_status_exception'), error)
-        this.$message.error(this.$t('wallet.refresh_approval_status_exception_retry'))
-      }
-    },
-
-    /**
-     * 获取bc config async
-     * @returns {Promise<void>}
-     */
-    getBCConfigAsync: async function () {
-      if (this.selectedCoin === 'BSC') {
-        this.selectedCoin = 'BNB'
-      }
-      // tod
-      const resp = {
-        paymentSource: 'udun',
-        maxAvailableAmount: 31677945466.2621,
-        minWithdrawAmount: 10,
-        maxWithdrawAmount: 50000,
-        isWithdrawWindowOpen: true,
-        identityVerified: true,
-        isWithdrawPasswordSet: true,
-        requiresWithdrawPassword: true,
-        withdrawWindowStart: '00:00:00',
-        withdrawWindowEnd: '00:00:00',
-        presentWithdrawFee: true,
-        withdrawFeeRate: 0,
-        minWithdrawFee: 0,
-      }
-      if (resp) {
-        this.withdrawConfig = Object.freeze(resp)
       }
     },
   },
