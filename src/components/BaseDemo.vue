@@ -199,6 +199,7 @@ export default {
       tokenConfigs: TOKEN_CONFIGS,
     }
   },
+  created() {},
   computed: {
     // 是否显示提币表单
     showWithdrawForm() {
@@ -1073,15 +1074,8 @@ export default {
           if (checkResult.success && this.isApproved) {
             console.log(this.$t('wallet.approval_confirmed_success'))
 
-            // 更新所有步骤为完成状态
-            this.updateProgressStep(1, 'completed', this.$t('wallet.block_confirmation_completed'))
-            this.updateProgressStep(2, 'completed', this.$t('wallet.approval_status_verification_success'))
-            this.updateProgressStep(3, 'completed', this.$t('wallet.approval_effective'))
-
             // 显示包含授权额度的成功消息
-            this.$message.success(
-              `${this.$t('wallet.token_approval_confirmation_success')} - 当前额度：${this.allowanceAmount}`,
-            )
+            this.$message.success(`授权成功`)
 
             // 强制触发Vue响应式更新，确保UI显示最新状态
             this.$forceUpdate()
@@ -1112,16 +1106,9 @@ export default {
               }),
             )
 
-            // 更新进度描述
-            this.updateProgressStep(2, 'active', this.$t('wallet.check_approval_status_attempt', { count: retryCount }))
-
             setTimeout(checkConfirmation, retryInterval)
           } else {
             console.warn(this.$t('wallet.approval_confirmation_timeout'))
-
-            // 更新进度为警告状态
-            this.updateProgressStep(1, 'completed', this.$t('wallet.waiting_time_long'))
-            this.updateProgressStep(2, 'active', this.$t('wallet.please_check_approval_status_manually'))
 
             this.$message.warning({
               message: this.$t('wallet.approval_transaction_submitted_long_confirmation'),
@@ -1142,15 +1129,8 @@ export default {
             retryInterval = Math.min(retryInterval * 1.5, maxRetryInterval)
             console.log(this.$t('wallet.check_failed_retry_after_seconds', { seconds: retryInterval / 1000 }))
 
-            // 更新进度描述显示错误
-            this.updateProgressStep(2, 'active', this.$t('wallet.check_error_retrying', { failures: consecutiveFailures }))
-
             setTimeout(checkConfirmation, retryInterval)
           } else {
-            // 显示最终错误状态
-            this.updateProgressStep(2, 'error', this.$t('wallet.approval_status_check_failed'))
-            this.showApprovalError(this.$t('wallet.approval_status_check_failed_manual_refresh'))
-
             this.$message.error(this.$t('wallet.approval_status_check_failed_refresh_page'))
 
             // 延迟隐藏进度提示
@@ -1366,9 +1346,6 @@ export default {
         })
 
         this.okxTronProvider = new OKXTronProvider(this.okxProvider)
-
-        // const { address } = this.okxTronProvider.getAccount('tron:mainnet');
-        // console.log('tron Connected address:', address);
 
         // 监听会话事件
         this.okxProvider.on('session_update', this.onSessionUpdate)
